@@ -1,28 +1,33 @@
 from os import getenv
 from dotenv import find_dotenv, load_dotenv
 
-from aiogram import types, Router
-from aiogram.types import ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo, KeyboardButton
-from aiogram.utils.keyboard import InlineKeyboardBuilder
+from aiogram import F, types, Router
+from aiogram.types import ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo, KeyboardButton, CallbackQuery
+# from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.filters import CommandStart, Command
 
 
 load_dotenv(find_dotenv())
 user_private_router = Router()
 
+#TODO: сделать рекомпозицию keyboards
 def auth_buttons():
-    kb_list = [[KeyboardButton(text="/login")], [KeyboardButton(text="/reg")]]
-    keyboard = ReplyKeyboardMarkup(keyboard=kb_list, resize_keyboard=True, one_time_keyboard=True)
-    return keyboard
-
+    regauth = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text='регистрация', callback_data='reg')],
+        [InlineKeyboardButton(text='авторизация', callback_data='auth')]
+    ])
+    return regauth
 
 @user_private_router.message(CommandStart())
 async def handle_start(msg: types.Message):
     await msg.answer(text=f'Привет, {msg.from_user.full_name}')
     await msg.answer(text=getenv("HELLO_TEXT")) # Приветственный текст (хранится в переменном окружении)
-    await msg.answer(text='Выбирите, что вы хотите сделать:')
-    await msg.answer('Вот тебе инлайн клавиатура со ссылками!', reply_markup=auth_buttons())
+    await msg.answer(text='Выбирите, что вы хотите сделать:', reply_markup=auth_buttons())
+#TODO: сделать авторизацию и регистрацию
+@user_private_router.callback_query(F.data == 'auth')
+async def authorization(callback: CallbackQuery):
+    await callback.message.answer('Введите логин:')
 
-# @user_private_router.message_handler(Command('/login'))
-# async def handle_login(msg: types.Message):
-#     await msg.answer(text='укажите логин:')
+@user_private_router.message(F.text == 'admin')
+async def auth_login_check(msg: types.Message):
+    await msg.answer(text='Введите паороль:')

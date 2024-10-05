@@ -5,7 +5,7 @@ import logging
 from aiogram import Bot
 from aiogram import Dispatcher
 from aiogram import types
-from aiogram.types import ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo, KeyboardButton
+from aiogram.types import WebAppInfo
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.filters import CommandStart, Command
 

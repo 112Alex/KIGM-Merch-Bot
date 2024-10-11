@@ -1,39 +1,26 @@
-from aiogram.types import KeyboardButton
-from aiogram.utils.keyboard import ReplyKeyboardBuilder
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, KeyboardButton, ReplyKeyboardMarkup
 
-def get_keyboard(
-    *btns: str,
-    placeholder: str = None,
-    request_contact: int = None,
-    request_location: int = None,
-    sizes: tuple[int] = (2,),
-):
-    '''
-    Parameters request_contact and request_location must be as indexes of btns args for buttons you need.
-    Example:
-    get_keyboard(
-            "Меню",
-            "О магазине",
-            "Варианты оплаты",
-            "Варианты доставки",
-            "Отправить номер телефона"
-            placeholder="Что вас интересует?",
-            request_contact=4,
-            sizes=(2, 2, 1)
-        )
-    '''
-    keyboard = ReplyKeyboardBuilder()
+AUTH_BTN = InlineKeyboardMarkup(inline_keyboard=[
+    [InlineKeyboardButton(text="зарегистрироваться", callback_data='reg')],
+    [InlineKeyboardButton(text="авторизироваться", callback_data='auth')],
+])
 
-    for index, text in enumerate(btns, start=0):
-        
-        if request_contact and request_contact == index:
-            keyboard.add(KeyboardButton(text=text, request_contact=True))
+ADMIN_KB = InlineKeyboardMarkup(inline_keyboard=[
+    [InlineKeyboardButton(text="добавить мероприятие", callback_data='add_event')],
+    [InlineKeyboardButton(text="посмотреть список мероприятий", callback_data='show_events')],
+    [InlineKeyboardButton(text="посмотреть заявки", callback_data='show_applications')],
+    [InlineKeyboardButton(text="включить магазин", callback_data='run_shop')],
+    [InlineKeyboardButton(text="отключить магазин", callback_data='stop_shop')],
+])
 
-        elif request_location and request_location == index:
-            keyboard.add(KeyboardButton(text=text, request_location=True))
-        else:
+MENU_KEYBOARD = InlineKeyboardMarkup(inline_keyboard=[
+    [InlineKeyboardButton(text="посмотреть список мероприятий", callback_data='show_events')],
+    [InlineKeyboardButton(text="узнать количество баллов", callback_data='show_score')],
+    [InlineKeyboardButton(text="посмотреть ассортимент", callback_data='show_assortment')],
+])
 
-            keyboard.add(KeyboardButton(text=text))
-
-    return keyboard.adjust(*sizes).as_markup(
-            resize_keyboard=True, input_field_placeholder=placeholder)
+ADD_EVENT_KEYBOARD = ReplyKeyboardMarkup(keyboard=[
+    [KeyboardButton(text="Волонтёрское благотворительное мероприятие в колледже")],
+    [KeyboardButton(text="Небельное волонтёрское мероприятие в колледже")],
+    [KeyboardButton(text="Волонтёрское мероприятие в колледже")],
+], resize_keyboard=True, one_time_keyboard=True)

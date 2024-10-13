@@ -19,8 +19,8 @@ MENU_KEYBOARD = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text="посмотреть ассортимент", callback_data='show_assortment')],
 ])
 
-ADD_EVENT_KEYBOARD = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text="Волон. благотворит. мероприятие в колледже", callback_data='vbmvk')],
-    [InlineKeyboardButton(text="Небельное волон. мероприятие в колледже", callback_data='nvmvk')],
-    [InlineKeyboardButton(text="Волонтёрское мероприятие в колледже", callback_data='vmvk')],
-])
+ADD_EVENT_KEYBOARD = ReplyKeyboardMarkup(keyboard=[
+    [KeyboardButton(text="Волонтёрское благотворительное мероприятие в колледже")],
+    [KeyboardButton(text="Небельное волонтёрское мероприятие в колледже")],
+    [KeyboardButton(text="Волонтёрское мероприятие в колледже")],
+], resize_keyboard=True, one_time_keyboard=True)

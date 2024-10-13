@@ -37,4 +37,4 @@ async def authorization(callback: CallbackQuery):
 
 @user_private_router.message(F.text.lower() == 'admin')
 async def auth_login_check(msg: types.Message):
-    await msg.answer(text='Введите паороль:')
+    await msg.answer(text='Введите пароль:')

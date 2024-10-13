@@ -5,7 +5,6 @@ import logging
 from aiogram import Bot
 from aiogram import Dispatcher
 from aiogram import types
-from aiogram.fsm.strategy import FSMStrategy
 
 from dotenv import find_dotenv, load_dotenv
 load_dotenv(find_dotenv())
@@ -19,7 +18,7 @@ from common.bot_cmds_list import private
 
 bot = Bot(token=getenv("BOT_TOKEN"))
 
-dp = Dispatcher(fsm_strategy = FSMStrategy.USER_IN_CHAT)
+dp = Dispatcher()
 
 dp.include_router(user_private_router)
 dp.include_router(user_group_router)

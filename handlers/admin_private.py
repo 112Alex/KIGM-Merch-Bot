@@ -11,7 +11,7 @@ from keybds.reply import *
 admin_router = Router()
 admin_router.message.filter(ChatTypeFilter(["private"]), IsAdmin())
 
-class AdminMenu(StatesGroup):
+class AdminMenu(StatesGroup): #NOTE FSM для админки
     set_action = State()
     set_event = State()
     zaglushka = State()
@@ -34,4 +34,4 @@ async def vbmvk_handler(msg: types.Message, state: FSMContext):
     await state.clear()
 
 
-# TODO:Дописать остальные админ-функции
+#TODO Дописать остальные админ-функции

@@ -30,29 +30,42 @@ async def menu(msg: types.Message):
 
 
 #TODO сделать авторизацию и регистрацию 
-#[x] FSM 
 
+#COMMENT классы состояний
+class Auth(StatesGroup): 
+    login_check = State()
+    password_check = State()
 
-class Auth(StatesGroup): #NOTE класс состояния регистрации
-    login = State()
-
-class Reg(StatesGroup): #NOTE класс состояния авторизации
+class Reg(StatesGroup):
     registration = State()
 
-class UserState(StatesGroup): #NOTE класс обычного состояния пользователя
+class UserDefault(StatesGroup):
     user_state = State()
 
 @user_private_router.callback_query(StateFilter('*'), F.data == 'auth')
 async def authorization(callback: CallbackQuery, state: FSMContext):
     await callback.message.answer('Введите логин:')
-    await state.set_state(Auth.login)
+    await state.set_state(Auth.login_check)
 
-@user_private_router.message(Auth.login, F.text.lower() == 'user')
+
+@user_private_router.message(Auth.login_check, F.text.lower() == 'user')
 async def auth_login_check(msg: types.Message, state: FSMContext):
-    await state.update_data(login=msg.text)
+    await state.update_data(login_check=msg.text)
     await msg.answer(text='Введите пароль:')
-    await state.set_state(UserState.user_state)
+    await state.set_state(Auth.password_check)
 
-@user_private_router.message(UserState.user_state, F.text.lower() == 'Z')
-async def z(msg: types.Message, state: FSMContext):
-    await msg.answer(text=msg.chat.username)
+@user_private_router.message(Auth.login_check)
+async def auth_login_check(msg: types.Message, state: FSMContext):
+    await msg.answer(text='Пользователь не найден')
+    await state.set_state(Auth.login_check)
+
+
+@user_private_router.message(Auth.password_check, F.text.lower() == 'password')
+async def auth_password_check(msg: types.Message, state: FSMContext):
+    await state.update_data(password_check=msg.text)
+    await msg.answer(text='Данные корректны')
+    await state.set_state(UserDefault.user_state)
+
+@user_private_router.message(Auth.password_check)
+async def auth_password_check(msg: types.Message, state: FSMContext):
+    await msg.answer(text='Данные некорректны \nпопробуйте ввести пароль ещё раз')

@@ -14,8 +14,9 @@ admin_router.message.filter(ChatTypeFilter(["private"]), IsAdmin())
 #COMMENT код ниже для FSM
 class AdminMenu(StatesGroup):
     menu = State()
-    set_event = State()
-    zaglushka = State()
+    set_event_type = State()
+    set_event_name = State()
+    set_event_date = State()
 
     texts = {
         'AdminMenu:menu': 'Выберите действие',
@@ -35,7 +36,7 @@ async def cancel_handler(message: types.Message, state: FSMContext) -> None:
     await message.answer("Действия отменены", reply_markup=ADMIN_KB,)
 
 #COMMENT вернуться на шаг назад (на предыдущее состояние)
-#BUG меню не хэндлится
+#BUG меню не хэндлится. (Вероятно из-за того, что прописано только одно состояние для создания мероприятий)
 @admin_router.message(StateFilter('*'), Command("назад"))
 @admin_router.message(StateFilter('*'), F.text.casefold() == "назад")
 async def back_step_handler(message: types.Message, state: FSMContext) -> None:
@@ -63,24 +64,50 @@ async def admin_menu(msg: types.Message, state: FSMContext):
 
 @admin_router.callback_query(AdminMenu.menu, F.data == 'add_event')
 async def add_event_handle(callback: CallbackQuery, state: FSMContext):
-    await state.update_data(menu = callback.message.text)
     await callback.message.answer(text='Выберите действие:', reply_markup=ADD_EVENT_KEYBOARD)
-    await state.set_state(AdminMenu.set_event)
+    await state.set_state(AdminMenu.set_event_type)
 
 @admin_router.message(AdminMenu.menu)
 async def add_event_handle(msg: types.Message, state: FSMContext):
     await msg.answer(text='Вы ввели некорректные данные. Выберите действие:')
 
+#COMMENT ВЫБОР МЕРОПРИЯТИЯ
 
-@admin_router.message(AdminMenu.set_event, F.text.lower() == 'волонтёрское благотворительное мероприятие в колледже')
-async def vbmvk_handler(msg: types.Message, state: FSMContext):
-    await state.update_data(set_event = msg.text)
-    await msg.answer(text="мероприятие выбрано", reply_markup=types.ReplyKeyboardRemove())
-    await state.set_state(AdminMenu.zaglushka) #TODO продолжить писать создание мероприятия
+@admin_router.message(AdminMenu.set_event_type, lambda message: message.text in events)
+async def event_type_handler(msg: types.Message, state: FSMContext):
+    await state.update_data(set_event_type = msg.text)
+    await msg.answer(text=f"мероприятие выбрано \n({msg.text})", reply_markup=types.ReplyKeyboardRemove())
+    await state.set_state(AdminMenu.set_event_name)
 
-@admin_router.message(AdminMenu.set_event)
-async def vbmvk_handler(msg: types.Message, state: FSMContext):
+#---------------ПРЕДЫДУЩИЙ ВАРИАНТ ФУНКЦИИ ПРОВЕРКИ ВВОДА---------------
+# @admin_router.message(AdminMenu.set_event, F.text.lower() == events[0].lower())
+# async def set_event_type(msg: types.Message, state: FSMContext):
+#     await state.update_data(set_event = msg.text)
+#     await msg.answer(text=f"мероприятие выбрано \n({msg.text})", reply_markup=types.ReplyKeyboardRemove())
+#     await state.set_state(AdminMenu.zaglushka)
+
+@admin_router.message(AdminMenu.set_event_type)
+async def event_type_handler(msg: types.Message, state: FSMContext):
     await msg.answer(text="вы ввели некорректное значение")
+
+
+@admin_router.message(AdminMenu.set_event_name)
+async def event_date_handler(msg: types.Message, state: FSMContext):
+    await state.update_data(set_event_name = msg.text)
+    await msg.answer(text=f"название мероприятия выбрано\n({msg.text})\nТеперь укажите дату мероприятия")
+    await state.set_state(AdminMenu.set_event_date)
+
+@admin_router.message(AdminMenu.set_event_date)
+async def event_date_handler(msg: types.Message, state: FSMContext):
+    await state.update_data(set_event_date = msg.text)
+    t = ''
+    for item in state.get_data:
+        t += f'{item}\n'
+    data = await state.get_data()
+    await msg.answer(t)
+    await msg.answer(str(data))
+    await state.clear()
+
 
 
 

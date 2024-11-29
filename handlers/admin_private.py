@@ -4,8 +4,11 @@ from aiogram.filters import Command, StateFilter
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.context import FSMContext
 
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
 from filters.chat_types import ChatTypeFilter, IsAdmin
 from keybds.reply import *
+from database.models import Event
 
 
 admin_router = Router()
@@ -72,11 +75,10 @@ async def add_event_handle(msg: types.Message, state: FSMContext):
     await msg.answer(text='Вы ввели некорректные данные. Выберите действие:')
 
 #COMMENT ВЫБОР МЕРОПРИЯТИЯ
-
 @admin_router.message(AdminMenu.set_event_type, lambda message: message.text in events)
 async def event_type_handler(msg: types.Message, state: FSMContext):
     await state.update_data(set_event_type = msg.text)
-    await msg.answer(text=f"мероприятие выбрано \n({msg.text})", reply_markup=types.ReplyKeyboardRemove())
+    await msg.answer(text=f"тип мероприятия выбран\n({msg.text})\nТеперь введите название мероприятия", reply_markup=types.ReplyKeyboardRemove())
     await state.set_state(AdminMenu.set_event_name)
 
 #---------------ПРЕДЫДУЩИЙ ВАРИАНТ ФУНКЦИИ ПРОВЕРКИ ВВОДА---------------
@@ -98,14 +100,19 @@ async def event_date_handler(msg: types.Message, state: FSMContext):
     await state.set_state(AdminMenu.set_event_date)
 
 @admin_router.message(AdminMenu.set_event_date)
-async def event_date_handler(msg: types.Message, state: FSMContext):
+async def event_date_handler(msg: types.Message, state: FSMContext, session: AsyncSession):
     await state.update_data(set_event_date = msg.text)
-    t = ''
-    for item in state.get_data:
-        t += f'{item}\n'
     data = await state.get_data()
-    await msg.answer(t)
     await msg.answer(str(data))
+
+    event = Event(
+        event_name=data["set_event_name"],
+        event_date=data["set_event_date"],
+        event_type=data["set_event_type"],
+    )
+    session.add(event)
+    await session.commit()
+
     await state.clear()
 
 

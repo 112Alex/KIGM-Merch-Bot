@@ -12,5 +12,5 @@ class Event(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     event_name: Mapped[str] = mapped_column(Text)
-    event_date: Mapped[date] = mapped_column(Date)
+    event_date: Mapped[str] = mapped_column(Text)
     event_type: Mapped[str] = mapped_column(Text)

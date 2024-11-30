@@ -5,6 +5,10 @@ from filters.chat_types import ChatTypeFilter
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.context import FSMContext
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from database.orm_query import orm_get_events
+
 from keybds.reply import *
 from common.variables import *
 
@@ -27,7 +31,6 @@ async def chek_id(msg: types.Message):
 @user_private_router.message(Command('menu'))
 async def menu(msg: types.Message):
     await msg.answer(text='выберите действие:', reply_markup=MENU_KEYBOARD)
-
 
 #TODO сделать авторизацию и регистрацию 
 
@@ -69,3 +72,8 @@ async def auth_password_check(msg: types.Message, state: FSMContext):
 @user_private_router.message(Auth.password_check)
 async def auth_password_check(msg: types.Message, state: FSMContext):
     await msg.answer(text='Данные некорректны \nпопробуйте ввести пароль ещё раз')
+
+@user_private_router.callback_query(F.data == 'show_events_user')
+async def show_events(callback: CallbackQuery, session: AsyncSession):
+    for event in await orm_get_events(session):
+        await callback.message.answer(f'<i>{event.event_type}</i>\n<strong>{event.event_name}</strong>\n<b>{event.event_date}</b>', parse_mode='html')

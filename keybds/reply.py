@@ -14,7 +14,7 @@ ADMIN_KB = InlineKeyboardMarkup(inline_keyboard=[
 ])
 
 MENU_KEYBOARD = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text="посмотреть список мероприятий", callback_data='show_events')],
+    [InlineKeyboardButton(text="посмотреть список мероприятий", callback_data='show_events_user')],
     [InlineKeyboardButton(text="узнать количество баллов", callback_data='show_score')],
     [InlineKeyboardButton(text="посмотреть ассортимент", callback_data='show_assortment')],
 ])
@@ -50,3 +50,7 @@ events = [
     "Участие в спортивных мероприятиях внутри колледжа",
     "Участие в спортивных мероприятиях, представляя колледж"
 ]
+
+YES_NO_KB = InlineKeyboardMarkup(inline_keyboard=[
+    [InlineKeyboardButton(text="да", callback_data='yes'), InlineKeyboardButton(text="нет", callback_data='no')],
+])

@@ -4,25 +4,25 @@ from aiogram.filters import Command, StateFilter
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.context import FSMContext
 
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from filters.chat_types import ChatTypeFilter, IsAdmin
 from keybds.reply import *
-from database.models import Event
+from database.orm_query import *
 
 
 admin_router = Router()
 admin_router.message.filter(ChatTypeFilter(["private"]), IsAdmin())
 
 #COMMENT код ниже для FSM
-class AdminMenu(StatesGroup):
-    menu = State()
+class EventAdd(StatesGroup):
     set_event_type = State()
     set_event_name = State()
     set_event_date = State()
+    event_confirmation = State()
 
     texts = {
-        'AdminMenu:menu': 'Выберите действие',
+        'EventAdd:set_event_type': 'Выберите действие',
     }
 
 #COMMENT отменить действие (сбросить состояние)
@@ -35,8 +35,9 @@ async def cancel_handler(message: types.Message, state: FSMContext) -> None:
     if current_state is None:
         return
 
-    await state.set_state(AdminMenu.menu)
-    await message.answer("Действия отменены", reply_markup=ADMIN_KB,)
+    await state.clear()
+    await message.answer("Действия отменены")
+    await message.answer("Выберите действие:", reply_markup=ADMIN_KB)
 
 #COMMENT вернуться на шаг назад (на предыдущее состояние)
 #BUG меню не хэндлится. (Вероятно из-за того, что прописано только одно состояние для создания мероприятий)
@@ -46,76 +47,87 @@ async def back_step_handler(message: types.Message, state: FSMContext) -> None:
 
     current_state = await state.get_state()
 
-    if current_state == AdminMenu.menu: #[ ] проверить
+    if current_state == EventAdd.set_event_type: #[ ] стоит переписать под новую FSM
         await message.answer('Предыдущего шага нет, или введите название товара или напишите "отмена"')
         return
     
     previous = None
-    for step in AdminMenu.__all_states__: #[ ] проверить
+    for step in EventAdd.__all_states__:
         if step.state == current_state:
             await state.set_state(previous)
-            await message.answer(f"Ок, вы вернулись к прошлому шагу \n {AdminMenu.texts[previous.state]}")
+            await message.answer(f"Ок, вы вернулись к прошлому шагу \n {EventAdd.texts[previous.state]}")
             return
         previous = step
 
 
-@admin_router.message(StateFilter('*'), Command("admin_menu"))
-async def admin_menu(msg: types.Message, state: FSMContext):
+@admin_router.message(StateFilter(None), Command("admin_menu"))
+async def admin_menu(msg: types.Message):
     await msg.answer(text='меню:', reply_markup=ADMIN_KB)
-    await state.set_state(AdminMenu.menu)
 
 
-@admin_router.callback_query(AdminMenu.menu, F.data == 'add_event')
+@admin_router.callback_query(StateFilter(None), F.data == 'add_event')
 async def add_event_handle(callback: CallbackQuery, state: FSMContext):
     await callback.message.answer(text='Выберите действие:', reply_markup=ADD_EVENT_KEYBOARD)
-    await state.set_state(AdminMenu.set_event_type)
+    await state.set_state(EventAdd.set_event_type)
 
-@admin_router.message(AdminMenu.menu)
+@admin_router.message(F.data)
 async def add_event_handle(msg: types.Message, state: FSMContext):
     await msg.answer(text='Вы ввели некорректные данные. Выберите действие:')
 
 #COMMENT ВЫБОР МЕРОПРИЯТИЯ
-@admin_router.message(AdminMenu.set_event_type, lambda message: message.text in events)
+@admin_router.message(EventAdd.set_event_type, lambda message: message.text in events)
 async def event_type_handler(msg: types.Message, state: FSMContext):
     await state.update_data(set_event_type = msg.text)
     await msg.answer(text=f"тип мероприятия выбран\n({msg.text})\nТеперь введите название мероприятия", reply_markup=types.ReplyKeyboardRemove())
-    await state.set_state(AdminMenu.set_event_name)
+    await state.set_state(EventAdd.set_event_name)
 
 #---------------ПРЕДЫДУЩИЙ ВАРИАНТ ФУНКЦИИ ПРОВЕРКИ ВВОДА---------------
-# @admin_router.message(AdminMenu.set_event, F.text.lower() == events[0].lower())
+# @admin_router.message(EventAdd.set_event, F.text.lower() == events[0].lower())
 # async def set_event_type(msg: types.Message, state: FSMContext):
 #     await state.update_data(set_event = msg.text)
 #     await msg.answer(text=f"мероприятие выбрано \n({msg.text})", reply_markup=types.ReplyKeyboardRemove())
-#     await state.set_state(AdminMenu.zaglushka)
+#     await state.set_state(EventAdd.zaglushka)
 
-@admin_router.message(AdminMenu.set_event_type)
+@admin_router.message(EventAdd.set_event_type)
 async def event_type_handler(msg: types.Message, state: FSMContext):
     await msg.answer(text="вы ввели некорректное значение")
 
 
-@admin_router.message(AdminMenu.set_event_name)
+@admin_router.message(EventAdd.set_event_name)
 async def event_date_handler(msg: types.Message, state: FSMContext):
     await state.update_data(set_event_name = msg.text)
     await msg.answer(text=f"название мероприятия выбрано\n({msg.text})\nТеперь укажите дату мероприятия")
-    await state.set_state(AdminMenu.set_event_date)
+    await state.set_state(EventAdd.set_event_date)
 
-@admin_router.message(AdminMenu.set_event_date)
-async def event_date_handler(msg: types.Message, state: FSMContext, session: AsyncSession):
+@admin_router.message(EventAdd.set_event_date)
+async def event_date_handler(msg: types.Message, state: FSMContext):
     await state.update_data(set_event_date = msg.text)
     data = await state.get_data()
-    await msg.answer(str(data))
+    data_arr = []
+    for item in data:
+        data_arr.append(str(data.get(item)))
+    await msg.answer(text=f'мероприятие добавлено\nТип: {data_arr[0]}\nНазвание: {data_arr[1]}\nДата: {data_arr[2]}')
+    await msg.answer(text='Всё верно?', reply_markup=YES_NO_KB)
+    await state.set_state(EventAdd.event_confirmation)
 
-    event = Event(
-        event_name=data["set_event_name"],
-        event_date=data["set_event_date"],
-        event_type=data["set_event_type"],
-    )
-    session.add(event)
-    await session.commit()
+@admin_router.callback_query(EventAdd.event_confirmation, F.data == 'yes')
+async def event_confirmation(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
+    await state.update_data(event_confirmation = F.data)
+    data = await state.get_data()
+    try:
+        await orm_add_event(session, data)
+        await callback.message.answer(text="Действие подтверждено\nМероприятие добавлено")
+        await state.clear()
+    except Exception as e:
+        await callback.message.answer(
+            f"Ошибка: \n{str(e)}\n Обратитесь к разработчику", reply_markup=ADMIN_KB)
+        await state.clear()
 
-    await state.clear()
 
-
+@admin_router.callback_query(StateFilter(None), F.data == 'show_events')
+async def show_events(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
+    for event in await orm_get_events(session):
+        await callback.message.answer(f'<i>{event.event_type}</i>\n<strong>{event.event_name}</strong>\n<b>{event.event_date}</b>', parse_mode='html')
 
 
 #TODO Дописать остальные админ-функции

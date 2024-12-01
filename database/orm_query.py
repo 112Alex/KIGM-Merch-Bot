@@ -13,6 +13,11 @@ async def orm_add_event(session: AsyncSession, data: dict):
     session.add(event)
     await session.commit()
 
+async def orm_get_event(session: AsyncSession, event_id: int):
+    query = select(Event).where(Event.id == event_id)
+    result = await session.execute(query)
+    return result.scalar()
+
 async def orm_get_events(session: AsyncSession):
     query = select(Event)
     result = await session.execute(query)
@@ -30,7 +35,7 @@ async def orm_update_event(session: AsyncSession, event_id: int, data):
         event_type=data["set_event_type"],)
     await session.execute(query)
     await session.commit()
-    
+
 async def orm_delete_event(session: AsyncSession, event_id: int):
     query = delete(Event).where(Event.id == event_id)
     await session.execute(query)

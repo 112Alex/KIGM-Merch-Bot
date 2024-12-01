@@ -1,6 +1,6 @@
 from aiogram import F, Router, types
 from aiogram.types import CallbackQuery
-from aiogram.filters import Command, StateFilter
+from aiogram.filters import Command, StateFilter, or_f
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.context import FSMContext
 
@@ -14,6 +14,20 @@ from database.orm_query import *
 
 admin_router = Router()
 admin_router.message.filter(ChatTypeFilter(["private"]), IsAdmin())
+
+
+#COMMENT код ниже для FSM
+class EventAdd(StatesGroup):
+    set_event_type = State()
+    set_event_name = State()
+    set_event_date = State()
+    event_confirmation = State()
+
+    event_for_change = None
+
+    texts = {
+        'EventAdd:set_event_type': 'Выберите действие',
+    }
 
 
 @admin_router.message(StateFilter(None), Command("admin_menu"))
@@ -30,17 +44,6 @@ async def add_event_handle(callback: CallbackQuery, state: FSMContext):
 async def add_event_handle(msg: types.Message, state: FSMContext):
     await msg.answer(text='Вы ввели некорректные данные. Выберите действие:')
 
-
-#COMMENT код ниже для FSM
-class EventAdd(StatesGroup):
-    set_event_type = State()
-    set_event_name = State()
-    set_event_date = State()
-    event_confirmation = State()
-
-    texts = {
-        'EventAdd:set_event_type': 'Выберите действие',
-    }
 
 #COMMENT отменить действие (сбросить состояние)
 #NOTE работает
@@ -96,9 +99,16 @@ async def event_type_handler(msg: types.Message, state: FSMContext):
     await msg.answer(text="вы ввели некорректное значение")
 
 
-@admin_router.message(EventAdd.set_event_name)
+#Ловим данные для состояния set_event_name и меняем состояние на set_event_date
+@admin_router.message(EventAdd.set_event_name, or_f(F.text, F.text == '.'))
 async def event_date_handler(msg: types.Message, state: FSMContext):
-    await state.update_data(set_event_name = msg.text)
+    if msg.text == '.':
+        await state.update_data(set_event_name = EventAdd.event_for_change.name)
+    else:
+        if len(msg.text) > 150:
+            await msg.answer("Название мероприятия не должно превышать 150 символов\nВведите заново")
+            return
+        await state.update_data(set_event_name = msg.text)
     await msg.answer(text=f"название мероприятия выбрано\n({msg.text})\nТеперь укажите дату мероприятия")
     await state.set_state(EventAdd.set_event_date)
 
@@ -109,6 +119,7 @@ async def event_date_handler(msg: types.Message, state: FSMContext):
     data_arr = []
     for item in data:
         data_arr.append(str(data.get(item)))
+    #BUG list index out of range при вызове функции во время изменения мероприятия
     await msg.answer(text=f'мероприятие добавлено\nТип: {data_arr[0]}\nНазвание: {data_arr[1]}\nДата: {data_arr[2]}')
     await msg.answer(text='Всё верно?', reply_markup=YES_NO_KB)
     await state.set_state(EventAdd.event_confirmation)
@@ -119,12 +130,15 @@ async def event_confirmation(callback: CallbackQuery, state: FSMContext, session
     data = await state.get_data()
     try:
         await orm_add_event(session, data)
+        await callback.answer()
         await callback.message.answer(text="Действие подтверждено\nМероприятие добавлено")
         await state.clear()
     except Exception as e:
         await callback.message.answer(
             f"Ошибка: \n{str(e)}\n Обратитесь к разработчику", reply_markup=ADMIN_KB)
         await state.clear()
+    
+    EventAdd.event_for_change = None
 
 
 # Показать все мероприятия
@@ -139,15 +153,33 @@ async def show_events(callback: CallbackQuery, state: FSMContext, session: Async
                 'Изменить': f'change_{event.id}'
             })
         )
+    await callback.answer()
 
 #Удалить мероприятие
 @admin_router.callback_query(F.data.startswith('delete_'))
 async def delete_event(callback: CallbackQuery, session: AsyncSession):
-    
+
     event_id = callback.data.split("_")[-1]
     await orm_delete_event(session, int(event_id))
 
     await callback.answer('Мероприятие удалено')
     await callback.message.answer("Мероприятие удалено!")
+
+#Изменение мероприятий
+@admin_router.callback_query(StateFilter(None), F.data.startswith('change_'))
+async def edit_event(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
+    event_id = callback.data.split("_")[-1]
+    event_for_change = await orm_get_event(session, int(event_id))
+
+    EventAdd.event_for_change = event_for_change
+    await callback.answer()
+    await callback.message.answer(
+        "Введите название мероприятия", reply_markup=types.ReplyKeyboardRemove()
+    )
+    await state.set_state(EventAdd.set_event_name)
+
+
+
+
 
 #TODO Дописать остальные админ-функции

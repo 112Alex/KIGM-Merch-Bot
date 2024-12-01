@@ -15,6 +15,22 @@ from database.orm_query import *
 admin_router = Router()
 admin_router.message.filter(ChatTypeFilter(["private"]), IsAdmin())
 
+
+@admin_router.message(StateFilter(None), Command("admin_menu"))
+async def admin_menu(msg: types.Message):
+    await msg.answer(text='меню:', reply_markup=ADMIN_KB)
+
+
+@admin_router.callback_query(StateFilter(None), F.data == 'add_event')
+async def add_event_handle(callback: CallbackQuery, state: FSMContext):
+    await callback.message.answer(text='Выберите действие:', reply_markup=ADD_EVENT_KEYBOARD)
+    await state.set_state(EventAdd.set_event_type)
+
+@admin_router.message(F.data)
+async def add_event_handle(msg: types.Message, state: FSMContext):
+    await msg.answer(text='Вы ввели некорректные данные. Выберите действие:')
+
+
 #COMMENT код ниже для FSM
 class EventAdd(StatesGroup):
     set_event_type = State()
@@ -60,20 +76,6 @@ async def back_step_handler(message: types.Message, state: FSMContext) -> None:
             return
         previous = step
 
-
-@admin_router.message(StateFilter(None), Command("admin_menu"))
-async def admin_menu(msg: types.Message):
-    await msg.answer(text='меню:', reply_markup=ADMIN_KB)
-
-
-@admin_router.callback_query(StateFilter(None), F.data == 'add_event')
-async def add_event_handle(callback: CallbackQuery, state: FSMContext):
-    await callback.message.answer(text='Выберите действие:', reply_markup=ADD_EVENT_KEYBOARD)
-    await state.set_state(EventAdd.set_event_type)
-
-@admin_router.message(F.data)
-async def add_event_handle(msg: types.Message, state: FSMContext):
-    await msg.answer(text='Вы ввели некорректные данные. Выберите действие:')
 
 #COMMENT ВЫБОР МЕРОПРИЯТИЯ
 @admin_router.message(EventAdd.set_event_type, lambda message: message.text in events)
@@ -125,6 +127,7 @@ async def event_confirmation(callback: CallbackQuery, state: FSMContext, session
         await state.clear()
 
 
+# Показать все мероприятия
 @admin_router.callback_query(StateFilter(None), F.data == 'show_events')
 async def show_events(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
     for event in await orm_get_events(session):
@@ -137,6 +140,14 @@ async def show_events(callback: CallbackQuery, state: FSMContext, session: Async
             })
         )
 
+#Удалить мероприятие
+@admin_router.callback_query(F.data.startswith('delete_'))
+async def delete_event(callback: CallbackQuery, session: AsyncSession):
+    
+    event_id = callback.data.split("_")[-1]
+    await orm_delete_event(session, int(event_id))
 
+    await callback.answer('Мероприятие удалено')
+    await callback.message.answer("Мероприятие удалено!")
 
 #TODO Дописать остальные админ-функции

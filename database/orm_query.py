@@ -23,15 +23,15 @@ async def orm_get_products(session: AsyncSession):
     result = await session.execute(query)
     return result.scalars().all()
 
-async def orm_delete_event(session: AsyncSession, event_id: int):
-    query = delete(Event).where(Event.id == event_id)
-    await session.execute(query)
-    await session.commit()
-
 async def orm_update_event(session: AsyncSession, event_id: int, data):
     query = update(Event).where(Event.id == event_id).values(
         event_name=data["set_event_name"],
         event_date=data["set_event_date"],
         event_type=data["set_event_type"],)
+    await session.execute(query)
+    await session.commit()
+    
+async def orm_delete_event(session: AsyncSession, event_id: int):
+    query = delete(Event).where(Event.id == event_id)
     await session.execute(query)
     await session.commit()

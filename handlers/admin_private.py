@@ -7,6 +7,7 @@ from aiogram.fsm.context import FSMContext
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from filters.chat_types import ChatTypeFilter, IsAdmin
+from keybds.inline import *
 from keybds.reply import *
 from database.orm_query import *
 
@@ -127,7 +128,15 @@ async def event_confirmation(callback: CallbackQuery, state: FSMContext, session
 @admin_router.callback_query(StateFilter(None), F.data == 'show_events')
 async def show_events(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
     for event in await orm_get_events(session):
-        await callback.message.answer(f'<i>{event.event_type}</i>\n<strong>{event.event_name}</strong>\n<b>{event.event_date}</b>', parse_mode='html')
+        await callback.message.answer(
+            f'<i>{event.event_type}</i>\n<strong>{event.event_name}</strong>\n<b>{event.event_date}</b>',
+            parse_mode='html',
+            reply_markup=get_callback_btns(btns={
+                'Удалить': f'delete_{event.id}',
+                'Изменить': f'change_{event.id}'
+            })
+        )
+
 
 
 #TODO Дописать остальные админ-функции

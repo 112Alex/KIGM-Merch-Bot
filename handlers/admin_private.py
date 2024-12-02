@@ -46,7 +46,6 @@ async def add_event_handler(msg: types.Message, state: FSMContext):
 
 
 #COMMENT отменить действие (сбросить состояние)
-#NOTE работает
 @admin_router.message(StateFilter('*'), Command("отмена"))
 @admin_router.message(StateFilter('*'), F.text.casefold() == "отмена")
 async def cancel_handler(message: types.Message, state: FSMContext) -> None:
@@ -54,21 +53,22 @@ async def cancel_handler(message: types.Message, state: FSMContext) -> None:
     current_state = await state.get_state()
     if current_state is None:
         return
+    if EventAdd.event_for_change:
+        EventAdd.event_for_change = None
 
     await state.clear()
-    await message.answer("Действия отменены")
+    await message.answer("Действия отменены", reply_markup=types.ReplyKeyboardRemove())
     await message.answer("Выберите действие:", reply_markup=ADMIN_KB)
 
 #COMMENT вернуться на шаг назад (на предыдущее состояние)
-#BUG меню не хэндлится. (Вероятно из-за того, что прописано только одно состояние для создания мероприятий)
 @admin_router.message(StateFilter('*'), Command("назад"))
 @admin_router.message(StateFilter('*'), F.text.casefold() == "назад")
 async def back_step_handler(message: types.Message, state: FSMContext) -> None:
 
     current_state = await state.get_state()
 
-    if current_state == EventAdd.set_event_type: #[ ] стоит переписать под новую FSM
-        await message.answer('Предыдущего шага нет, или введите название товара или напишите "отмена"')
+    if current_state == EventAdd.set_event_type:
+        await message.answer('Предыдущего шага нет, или укажите тип мероприятия или напишите "отмена"', reply_markup=ADD_EVENT_KEYBOARD)
         return
     
     previous = None
@@ -99,7 +99,7 @@ async def event_type_handler(msg: types.Message, state: FSMContext):
     await msg.answer(text="вы ввели некорректное значение")
 
 
-#Ловим данные для состояния set_event_name и меняем состояние на set_event_date
+#COMMENT Ловим данные для состояния set_event_name и меняем состояние на set_event_date
 @admin_router.message(EventAdd.set_event_name, or_f(F.text, F.text == '.'))
 async def event_date_handler(msg: types.Message, state: FSMContext):
     if msg.text == '.':
@@ -122,11 +122,11 @@ async def event_date_handler(msg: types.Message, state: FSMContext):
     data_arr = []
     for item in data:
         data_arr.append(str(data.get(item)))
-    #BUG list index out of range при вызове функции во время изменения мероприятия
     await msg.answer(text=f'мероприятие добавлено\nТип: {data_arr[0]}\nНазвание: {data_arr[1]}\nДата: {data_arr[2]}')
     await msg.answer(text='Всё верно?', reply_markup=YES_NO_KB)
     await state.set_state(EventAdd.event_confirmation)
 
+#COMMENT Подтверждение добавления мероприятия
 @admin_router.callback_query(EventAdd.event_confirmation, F.data == 'yes')
 async def event_confirmation(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
     await state.update_data(event_confirmation = F.data)
@@ -137,8 +137,9 @@ async def event_confirmation(callback: CallbackQuery, state: FSMContext, session
         else:
             await orm_add_event(session, data)
         await callback.answer()
-        await callback.message.answer(text="Действие подтверждено\nМероприятие добавлено")
+        await callback.message.answer("Действие подтверждено\nМероприятие добавлено")
         await state.clear()
+        await callback.message.answer("Выберите действие:", reply_markup=ADMIN_KB)
     except Exception as e:
         await callback.message.answer(
             f"Ошибка: \n{str(e)}\n Обратитесь к разработчику", reply_markup=ADMIN_KB)

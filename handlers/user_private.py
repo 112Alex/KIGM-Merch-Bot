@@ -32,6 +32,7 @@ async def chek_id(msg: types.Message):
 @user_private_router.message(Command('menu'))
 async def menu(msg: types.Message):
     await msg.answer(text='выберите действие:', reply_markup=MENU_KEYBOARD)
+    
 
 #TODO сделать авторизацию и регистрацию 
 

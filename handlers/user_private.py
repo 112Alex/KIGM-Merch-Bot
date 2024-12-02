@@ -75,7 +75,9 @@ async def auth_password_check(msg: types.Message, state: FSMContext):
 async def auth_password_check(msg: types.Message, state: FSMContext):
     await msg.answer(text='Данные некорректны \nпопробуйте ввести пароль ещё раз')
 
+#COMMENT Показать волнтёрские мероприятия
 @user_private_router.callback_query(F.data == 'show_events_user')
 async def show_events(callback: CallbackQuery, session: AsyncSession):
     for event in await orm_get_events(session):
-        await callback.message.answer(f'<i>{event.event_type}</i>\n<strong>{event.event_name}</strong>\n<b>{event.event_date}</b>', parse_mode='html')
+        await callback.message.answer(
+            f'<i>{event.event_type}</i>\n<strong>{event.event_name}</strong>\n\n<code>{event.event_date}</code>', parse_mode='html')

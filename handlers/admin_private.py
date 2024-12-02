@@ -103,7 +103,7 @@ async def event_type_handler(msg: types.Message, state: FSMContext):
 @admin_router.message(EventAdd.set_event_name, or_f(F.text, F.text == '.'))
 async def event_date_handler(msg: types.Message, state: FSMContext):
     if msg.text == '.':
-        await state.update_data(set_event_name = EventAdd.event_for_change.set_event_name)
+        await state.update_data(set_event_name = EventAdd.event_for_change.event_name)
     else:
         if len(msg.text) > 150:
             await msg.answer("Название мероприятия не должно превышать 150 символов\nВведите заново")
@@ -147,13 +147,18 @@ async def event_confirmation(callback: CallbackQuery, state: FSMContext, session
     
     EventAdd.event_for_change = None
 
+@admin_router.callback_query(EventAdd.event_confirmation, F.data == 'no')
+async def event_confirmation(callback: CallbackQuery, state: FSMContext):
+    await callback.answer('Действия отменены')
+    await state.clear()
+    await callback.message.answer("Выберите действие:", reply_markup=ADMIN_KB)
 
 #COMMENT Показать все мероприятия
 @admin_router.callback_query(StateFilter(None), F.data == 'show_events')
 async def show_events(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
     for event in await orm_get_events(session):
         await callback.message.answer(
-            f'<i>{event.event_type}</i>\n<strong>{event.event_name}</strong>\n<b>{event.event_date}</b>',
+            f'<i>{event.event_type}</i>\n<strong>{event.event_name}</strong>\n\n<code>{event.event_date}</code>',
             parse_mode='html',
             reply_markup=get_callback_btns(btns={
                 'Удалить': f'delete_{event.id}',
@@ -171,7 +176,6 @@ async def delete_event(callback: CallbackQuery, session: AsyncSession):
     await callback.message.delete()
 
     await callback.answer('Мероприятие удалено')
-    await callback.message.answer("Мероприятие удалено!")
 
 #COMMENT Изменение мероприятий
 @admin_router.callback_query(StateFilter(None), F.data.startswith('change_'))

@@ -18,6 +18,8 @@ class Event(Base):
 
 
 class User(Base):
+    __tablename__ = "user"
+
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(Text)
     age: Mapped[int] = mapped_column(SmallInteger)
@@ -39,6 +41,8 @@ class Submission(Base):
 
 
 class Goods(Base):
+    __tablename__ = "goods"
+
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(Text)
     price: Mapped[float] = mapped_column(Numeric(8,2), nullable=False)
@@ -47,6 +51,8 @@ class Goods(Base):
 
 
 class Buyed_Goods(Base):
+    __tablename__ = "buyed_goods"
+
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
     goods_id: Mapped[int] = mapped_column(ForeignKey('goods.id', ondelete='CASCADE'), nullable=False)

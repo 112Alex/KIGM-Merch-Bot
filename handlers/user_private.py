@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from database.orm_query import orm_get_events
 
 from keybds.reply import *
+from keybds.inline import *
 from common.variables import *
 
 

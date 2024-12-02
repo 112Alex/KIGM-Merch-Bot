@@ -42,40 +42,14 @@ class Auth(StatesGroup):
     password_check = State()
 
 class Reg(StatesGroup):
-    registration = State()
+    name = State()
 
-class UserDefault(StatesGroup):
-    user_state = State()
+@user_private_router.callback_query(StateFilter(None), F.data == 'reg')
+async def add_user_name(callback: CallbackQuery, session: AsyncSession):
+    await callback.message.answer('Напишите своё имя:')
+#TODO Дописать регистрацию черещз FSM
 
-@user_private_router.callback_query(StateFilter('*'), F.data == 'auth')
-async def authorization(callback: CallbackQuery, state: FSMContext):
-    await callback.message.answer('Введите логин:')
-    await state.set_state(Auth.login_check)
-
-
-@user_private_router.message(Auth.login_check, F.text.lower() == 'user')
-async def auth_login_check(msg: types.Message, state: FSMContext):
-    await state.update_data(login_check=msg.text)
-    await msg.answer(text='Введите пароль:')
-    await state.set_state(Auth.password_check)
-
-@user_private_router.message(Auth.login_check)
-async def auth_login_check(msg: types.Message, state: FSMContext):
-    await msg.answer(text='Пользователь не найден')
-    await state.set_state(Auth.login_check)
-
-
-@user_private_router.message(Auth.password_check, F.text.lower() == 'password')
-async def auth_password_check(msg: types.Message, state: FSMContext):
-    await state.update_data(password_check=msg.text)
-    await msg.answer(text='Данные корректны')
-    await state.set_state(UserDefault.user_state)
-
-@user_private_router.message(Auth.password_check)
-async def auth_password_check(msg: types.Message, state: FSMContext):
-    await msg.answer(text='Данные некорректны \nпопробуйте ввести пароль ещё раз')
-
-#COMMENT Показать волнтёрские мероприятия
+#COMMENT Показать волонтёрские мероприятия
 @user_private_router.callback_query(F.data == 'show_events_user')
 async def show_events(callback: CallbackQuery, session: AsyncSession):
     for event in await orm_get_events(session):

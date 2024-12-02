@@ -24,6 +24,7 @@ class User(Base):
     name: Mapped[str] = mapped_column(Text)
     age: Mapped[int] = mapped_column(SmallInteger)
     group: Mapped[str] = mapped_column(Text)
+    phone_number: Mapped[str] = mapped_column(Text)
     score: Mapped[int] = mapped_column(Integer)
 
 
@@ -57,8 +58,10 @@ class Buyed_Goods(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
     goods_id: Mapped[int] = mapped_column(ForeignKey('goods.id', ondelete='CASCADE'), nullable=False)
 
-    buyed_goods: Mapped['Goods'] = relationship(backref='buyed_goods')
-    
+    goods: Mapped['Goods'] = relationship(backref='buyed_goods')
+    user_id: Mapped['User'] = relationship(backref='buyed_goods')
+
+#TODO проверить всё на правильность
 
 
 

@@ -29,3 +29,7 @@ events = [
     "Участие в спортивных мероприятиях внутри колледжа",
     "Участие в спортивных мероприятиях, представляя колледж"
 ]
+
+CONTACT_KEYBOARD = ReplyKeyboardMarkup(keyboard=[
+        [KeyboardButton(text="📱 Отправить")]
+    ], request_contact=True,resize_keyboard=True, one_time_keyboard=True)

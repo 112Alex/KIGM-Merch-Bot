@@ -42,7 +42,6 @@ async def orm_add_user(session: AsyncSession, data: dict):
         name = data['name'],
         age = data['age'],
         group = data['group'],
-        phone_number = data['phone_number'],
     )
     session.add(event)
     await session.commit()

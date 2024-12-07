@@ -12,6 +12,7 @@ from database.orm_query import orm_get_events
 from keybds.reply import *
 from keybds.inline import *
 from common.variables import *
+from aiogram.methods.send_contact import SendContact
 
 
 user_private_router = Router()
@@ -42,11 +43,17 @@ class Auth(StatesGroup):
     password_check = State()
 
 class Reg(StatesGroup):
-    name = State()
+    first_name = State()
+    second_name = State()
+    group = State()
+    age = State()
 
 @user_private_router.callback_query(StateFilter(None), F.data == 'reg')
-async def add_user_name(callback: CallbackQuery, session: AsyncSession):
-    await callback.message.answer('Напишите своё имя:')
+async def add_user_name(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
+    # await state.update_data()
+    await callback.message.answer('Поделитесь номером телефона', reply_markup=CONTACT_KEYBOARD)
+    await state.set_state(Reg.phone_number)
+
 #TODO Дописать регистрацию черещз FSM
 
 #COMMENT Показать волонтёрские мероприятия

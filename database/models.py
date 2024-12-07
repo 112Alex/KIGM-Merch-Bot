@@ -24,7 +24,6 @@ class User(Base):
     name: Mapped[str] = mapped_column(Text)
     age: Mapped[int] = mapped_column(SmallInteger)
     group: Mapped[str] = mapped_column(Text)
-    phone_number: Mapped[str] = mapped_column(Text)
     score: Mapped[int] = mapped_column(Integer)
 
 

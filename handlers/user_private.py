@@ -47,14 +47,52 @@ class Reg(StatesGroup):
     second_name = State()
     group = State()
     age = State()
+    reg_confirmation = State()
 
 @user_private_router.callback_query(StateFilter(None), F.data == 'reg')
-async def add_user_name(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
-    # await state.update_data()
-    await callback.message.answer('Поделитесь номером телефона', reply_markup=CONTACT_KEYBOARD)
-    await state.set_state(Reg.phone_number)
+async def add_user_firstname(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
+    await callback.message.answer("Введите своё имя")
+    await state.set_state(Reg.first_name)
 
-#TODO Дописать регистрацию черещз FSM
+@user_private_router.message(Reg.first_name)
+async def add_user_secondname(msg: types.Message, state: FSMContext, session: AsyncSession):
+    await state.update_data(first_name = msg.text)
+    await msg.answer("Введите свою фамилию:")
+    await state.set_state(Reg.second_name)
+
+@user_private_router.message(Reg.second_name)
+async def add_user_group(msg: types.Message, state: FSMContext, session: AsyncSession):
+    await state.update_data(second_name = msg.text)
+    await msg.answer("Введите свою группу:\nПример: '21ИС' (без кавычек)")
+    await state.set_state(Reg.group)
+
+@user_private_router.message(Reg.group)
+async def add_user_age(msg: types.Message, state: FSMContext, session: AsyncSession):
+    await state.update_data(group = msg.text)
+    await msg.answer("Введите свой возраст (только число):")
+    await state.set_state(Reg.age)
+
+@user_private_router.message(Reg.age)
+async def user_info(msg: types.Message, state: FSMContext, session: AsyncSession):
+    await state.update_data(age = msg.text)
+    data = await state.get_data()
+    data_arr = []
+    for item in data:
+        data_arr.append(str(data.get(item)))
+    await msg.answer(
+        text=f'Имя: {data_arr[0]}\nФамилия: {data_arr[1]}\nГруппа: {data_arr[2]}\nВозраст: {data_arr[3]}')
+    await msg.answer(text='Всё верно?', reply_markup=YES_NO_KB)
+    await state.set_state(Reg.reg_confirmation)
+
+@user_private_router.callback_query(Reg.reg_confirmation, F.data == 'yes')
+async def add_user_confirmation(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
+    await state.update_data(reg_confirmation = F.data)
+    data = await state.get_data()
+    await callback.answer()
+    await callback.message.answer("Действие подтверждено\nМероприятие добавлено")
+    await state.clear()
+
+#TODO добавить результаты добавления пользователя в БД
 
 #COMMENT Показать волонтёрские мероприятия
 @user_private_router.callback_query(F.data == 'show_events_user')

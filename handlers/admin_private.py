@@ -116,7 +116,7 @@ async def event_date_handler(msg: types.Message, state: FSMContext):
     await state.set_state(EventAdd.set_event_date)
 
 @admin_router.message(EventAdd.set_event_date)
-async def event_date_handler(msg: types.Message, state: FSMContext):
+async def event_info(msg: types.Message, state: FSMContext):
     await state.update_data(set_event_date = msg.text)
     data = await state.get_data()
     data_arr = []

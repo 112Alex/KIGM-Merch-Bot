@@ -1,13 +1,14 @@
 from aiogram import F, types, Router
 from aiogram.types import CallbackQuery
 from aiogram.filters import CommandStart, Command, StateFilter
+from sqlalchemy import BigInteger
 from filters.chat_types import ChatTypeFilter
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.context import FSMContext
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from database.orm_query import orm_get_events
+from database.orm_query import orm_add_user, orm_get_events
 
 from keybds.reply import *
 from keybds.inline import *
@@ -44,7 +45,7 @@ class Auth(StatesGroup):
 
 class Reg(StatesGroup):
     first_name = State()
-    second_name = State()
+    last_name = State()
     group = State()
     age = State()
     reg_confirmation = State()
@@ -58,11 +59,11 @@ async def add_user_firstname(callback: CallbackQuery, state: FSMContext, session
 async def add_user_secondname(msg: types.Message, state: FSMContext, session: AsyncSession):
     await state.update_data(first_name = msg.text)
     await msg.answer("Введите свою фамилию:")
-    await state.set_state(Reg.second_name)
+    await state.set_state(Reg.last_name)
 
-@user_private_router.message(Reg.second_name)
+@user_private_router.message(Reg.last_name)
 async def add_user_group(msg: types.Message, state: FSMContext, session: AsyncSession):
-    await state.update_data(second_name = msg.text)
+    await state.update_data(last_name = msg.text)
     await msg.answer("Введите свою группу:\nПример: '21ИС' (без кавычек)")
     await state.set_state(Reg.group)
 
@@ -86,19 +87,39 @@ async def user_info(msg: types.Message, state: FSMContext, session: AsyncSession
 
 @user_private_router.callback_query(Reg.reg_confirmation, F.data == 'yes')
 async def add_user_confirmation(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
+    user = callback.from_user
     await state.update_data(reg_confirmation = F.data)
     data = await state.get_data()
+    # await callback.message.answer(f"{data}")
+    # data_arr = []
+    # for item in data:
+    #     data_arr.append(str(data.get(item)))
+
+    await orm_add_user(
+        session,
+        user_id=user.id,
+        first_name=data['first_name'],
+        last_name=data['last_name'],
+        group=data['group'],
+        age=int(data['age']),
+    )
+
     await callback.answer()
-    await callback.message.answer("Действие подтверждено\nВы зарегистрировались!")
-    await state.clear()
+    if orm_add_user == False:
+        await callback.message.answer(f"Действие подтверждено\nВы зарегистрировались!\n{data['first_name']}")
+        await state.clear()
+    else:
+        await callback.message.answer('с вашего аккаунта уже была совершена регистрация', reply_markup=AUTH_BTN)
+        await state.clear()
 
 @user_private_router.callback_query(Reg.reg_confirmation, F.data == 'no')
 async def add_user_confirmation(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
-    await callback.answer('Начнит регистрацию заново')
+    await callback.answer('Начните регистрацию заново')
     await state.clear()
     await callback.message.answer('Выберите, что хотите сделать:', reply_markup=AUTH_BTN)
 
 #TODO добавить результаты добавления пользователя в БД
+
 
 #COMMENT Показать волонтёрские мероприятия
 @user_private_router.callback_query(F.data == 'show_events_user')

@@ -1,6 +1,6 @@
-from sqlalchemy import create_engine, Column, Integer, String, Text, Date, ForeignKey, DECIMAL
+from sqlalchemy import Column, Integer, BigInteger, String, Text, Date, ForeignKey, DECIMAL
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship, sessionmaker
+from sqlalchemy.orm import relationship
 
 from datetime import date
 
@@ -22,10 +22,12 @@ class User(Base):
     __tablename__ = 'users'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    name = Column(Text, nullable=False)
+    user_id = Column(BigInteger, unique=True)
+    first_name = Column(Text, nullable=False)
+    last_name = Column(Text, nullable=False)
     age = Column(Integer, nullable=False)
     group = Column(Text, nullable=False)
-    score = Column(Integer, nullable=False)
+    score = Column(Integer)
 
     submissions = relationship("Submission", back_populates="user")
     bought_goods = relationship("BoughtGood", back_populates="user")
@@ -50,7 +52,7 @@ class Submission(Base):
     subm_text = Column(Text, nullable=False)
     subm_date = Column(Date, nullable=False)
     event_id = Column(Integer, ForeignKey('events.id'), nullable=False)
-    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    user_id = Column(BigInteger, ForeignKey('users.user_id'), nullable=False)
 
     event = relationship("Event", back_populates="submissions")
     user = relationship("User", back_populates="submissions")
@@ -60,7 +62,7 @@ class BoughtGood(Base):
     __tablename__ = 'buyed_goods'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    user_id = Column(BigInteger, ForeignKey('users.user_id'), nullable=False)
     goods_id = Column(Integer, ForeignKey('goods.id'), nullable=False)
 
     user = relationship("User", back_populates="bought_goods")

@@ -89,8 +89,14 @@ async def add_user_confirmation(callback: CallbackQuery, state: FSMContext, sess
     await state.update_data(reg_confirmation = F.data)
     data = await state.get_data()
     await callback.answer()
-    await callback.message.answer("Действие подтверждено\nМероприятие добавлено")
+    await callback.message.answer("Действие подтверждено\nВы зарегистрировались!")
     await state.clear()
+
+@user_private_router.callback_query(Reg.reg_confirmation, F.data == 'no')
+async def add_user_confirmation(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
+    await callback.answer('Начнит регистрацию заново')
+    await state.clear()
+    await callback.message.answer('Выберите, что хотите сделать:', reply_markup=AUTH_BTN)
 
 #TODO добавить результаты добавления пользователя в БД
 

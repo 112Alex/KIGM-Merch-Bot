@@ -61,6 +61,7 @@ async def cancel_handler(message: types.Message, state: FSMContext) -> None:
     await message.answer("Выберите действие:", reply_markup=ADMIN_KB)
 
 #COMMENT вернуться на шаг назад (на предыдущее состояние)
+#[x] не работает после обновления models.py
 @admin_router.message(StateFilter('*'), Command("назад"))
 @admin_router.message(StateFilter('*'), F.text.casefold() == "назад")
 async def back_step_handler(message: types.Message, state: FSMContext) -> None:

@@ -37,11 +37,25 @@ async def orm_delete_event(session: AsyncSession, event_id: int):
     await session.commit()
 
 #COMMENT добавление пользователя
-async def orm_add_user(session: AsyncSession, data: dict):
-    event = User(
-        name = data['name'],
-        age = data['age'],
-        group = data['group'],
-    )
-    session.add(event)
-    await session.commit()
+# async def orm_add_user(session: AsyncSession, data: dict):
+#     event = User(
+#         name = data['name'],
+#         age = data['age'],
+#         group = data['group'],
+#     )
+#     session.add(event)
+#     await session.commit()
+
+async def orm_add_user(
+    session: AsyncSession,
+    user_id: int,
+    first_name: str | None = None,
+    second_name: str | None = None,
+):
+    query = select(User).where(User.id == user_id)
+    result = await session.execute(query)
+    if result.first() is None:
+        session.add(
+            User(id=user_id, first_name=first_name, second_name=second_name)#, phone=phone)
+        )
+        await session.commit()

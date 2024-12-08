@@ -74,8 +74,6 @@ class BoughtGood(Base):
 #NOTE старая версия модели (не работает)
 # class Base(DeclarativeBase):
 #     ...
-
-
 # class Event(Base):
 #     __tablename__ = 'event'
 #     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
@@ -97,7 +95,6 @@ class BoughtGood(Base):
 #     subm_date: Mapped[date] = mapped_column(Date)
 #     event_id: Mapped[int] = mapped_column(ForeignKey('event.id', ondelete='CASCADE'), nullable=False)
 #     user_id: Mapped[int] = mapped_column(ForeignKey('user.user_id', ondelete='CASCADE'), nullable=False)
-
 #     event: Mapped['Event'] = relationship(backref='submission')
 #     user: Mapped['User'] = relationship(backref='submission')
 # class Goods(Base):
@@ -109,11 +106,9 @@ class BoughtGood(Base):
 #     description: Mapped[str] = mapped_column(Text)
 # class Buyed_Goods(Base):
 #     __tablename__ = "buyed_goods"
-
 #     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 #     user_id: Mapped[int] = mapped_column(ForeignKey('user.user_id', ondelete='CASCADE'), nullable=False)
 #     goods_id: Mapped[int] = mapped_column(ForeignKey('goods.id', ondelete='CASCADE'), nullable=False)
-
 #     goods: Mapped['Goods'] = relationship(backref='buyed_goods')
 #     user_id: Mapped['User'] = relationship(backref='buyed_goods')
 

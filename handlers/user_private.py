@@ -8,7 +8,7 @@ from aiogram.fsm.context import FSMContext
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from database.orm_query import orm_add_user, orm_get_events
+from database.orm_query import orm_add_user, orm_get_events, orm_show_score
 
 from keybds.reply import *
 from keybds.inline import *
@@ -34,12 +34,15 @@ async def chek_id(msg: types.Message):
 @user_private_router.message(Command('menu'))
 async def menu(msg: types.Message):
     await msg.answer(text='выберите действие:', reply_markup=MENU_KEYBOARD)
+
+@user_private_router.callback_query(F.data == 'show_score')
+async def show_score(callback: CallbackQuery, session: AsyncSession):
+    result = await orm_show_score(session, int(callback.from_user.id))
+    await callback.message.answer(f'Ваше количество накопленных баллов:\n{result}')
     
 
-#TODO сделать авторизацию и регистрацию 
-
 #COMMENT классы состояний
-class Auth(StatesGroup): 
+class Auth(StatesGroup): #TODO сделать авторизацию
     login_check = State()
     password_check = State()
 
@@ -105,20 +108,15 @@ async def add_user_confirmation(callback: CallbackQuery, state: FSMContext, sess
     )
 
     await callback.answer()
-    if orm_add_user == False:
-        await callback.message.answer(f"Действие подтверждено\nВы зарегистрировались!\n{data['first_name']}")
-        await state.clear()
-    else:
-        await callback.message.answer('с вашего аккаунта уже была совершена регистрация', reply_markup=AUTH_BTN)
-        await state.clear()
+    await callback.message.answer(f"Действие подтверждено\nВы зарегистрировались!")
+    await state.clear()
+    # await callback.message.answer('с вашего аккаунта уже была совершена регистрация', reply_markup=AUTH_BTN)
 
 @user_private_router.callback_query(Reg.reg_confirmation, F.data == 'no')
 async def add_user_confirmation(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
     await callback.answer('Начните регистрацию заново')
     await state.clear()
     await callback.message.answer('Выберите, что хотите сделать:', reply_markup=AUTH_BTN)
-
-#TODO добавить результаты добавления пользователя в БД
 
 
 #COMMENT Показать волонтёрские мероприятия

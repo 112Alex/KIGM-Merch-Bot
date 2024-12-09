@@ -30,8 +30,9 @@ class EventAdd(StatesGroup):
     }
 
 
-@admin_router.message(StateFilter(None), Command("admin_menu"))
-async def admin_menu(msg: types.Message):
+@admin_router.message(Command("admin_menu"))
+async def admin_menu(msg: types.Message, state: FSMContext):
+    await state.clear()
     await msg.answer(text='меню:', reply_markup=ADMIN_KB)
 
 

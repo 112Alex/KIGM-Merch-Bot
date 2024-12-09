@@ -54,6 +54,12 @@ async def orm_add_user(
         )
         await session.commit()
 
+#COMMENT ищем пользователя по user_id
+async def find_by_user_id(session: AsyncSession, user_id: int):
+    query = select(User).where(User.user_id == user_id)
+    result = await session.execute(query)
+    return result.scalar()
+
 #COMMENT отображение кол-ва баллов
 async def orm_show_score(session: AsyncSession, user_id: int):
     query = select(User.score).where(User.user_id == user_id)

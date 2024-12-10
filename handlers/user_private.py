@@ -109,26 +109,25 @@ async def add_user_confirmation(callback: CallbackQuery, state: FSMContext, sess
     await state.clear()
     await callback.message.answer('Выберите, что хотите сделать:', reply_markup=AUTH_BTN)
 
-#COMMENT USER-МЕНЮ
-@user_private_router.message(Authorized.zaglushka, F.text.lower() == 'показать меню')
-@user_private_router.message(Authorized.zaglushka, Command('menu'))
+#COMMENT ПОСМОТРЕТЬ АССОРТИМЕНТ
+@user_private_router.message(StateFilter(Authorized), F.text.lower() == 'показать меню')
+@user_private_router.message(StateFilter(Authorized), Command('menu'))
 async def menu(msg: types.Message, state: FSMContext):
-    await msg.answer(text='выберите действие:', reply_markup=MENU_KEYBOARD)
+    await msg.answer(reply_markup=types.reply_keyboard_remove())
+    #TODO дописать
 
 #COMMENT Показать волонтёрские мероприятия
-@user_private_router.callback_query(F.data == 'show_events_user')
-async def show_events(callback: CallbackQuery, session: AsyncSession):
+@user_private_router.message(StateFilter(Authorized), F.text.lower() == 'показать список мероприятий')
+async def show_events(msg: types.Message, session: AsyncSession):
     for event in await orm_get_events(session):
-        await callback.message.answer(
-            f'<i>{event.event_type}</i>\n<strong>{event.event_name}</strong>\n\n<code>{event.event_date}</code>', parse_mode='html')
-    await callback.answer()
+        await msg.answer(
+            f'<i>{event.event_type}</i>\n<strong>{event.event_name}</strong>\n\n<code>{event.event_date}</code>', parse_mode='html', reply_markup=SEND_REQUEST)
 
 #COMMENT УЗНАТЬ КОЛ-ВО БАЛЛОВ
-@user_private_router.callback_query(F.data == 'show_score')
-async def show_score(callback: CallbackQuery, session: AsyncSession):
-    result = await orm_show_score(session, int(callback.from_user.id))
-    await callback.message.answer(f'Ваше количество накопленных баллов:\n{result}')
-    await callback.answer(f'Ваше количество накопленных баллов:\n{result}')
+@user_private_router.message(StateFilter(Authorized), F.text.lower() == 'узнать количество баллов')
+async def show_score(msg: types.Message, session: AsyncSession):
+    result = await orm_show_score(session, int(msg.from_user.id))
+    await msg.answer(f'Ваше количество накопленных баллов:\n{result}')
 
 
 

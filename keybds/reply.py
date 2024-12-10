@@ -1,8 +1,12 @@
 from aiogram.types import KeyboardButton, ReplyKeyboardMarkup
+from aiogram.utils.keyboard import ReplyKeyboardBuilder
+
 
 SHOW_MENU_KB = ReplyKeyboardMarkup(keyboard=[
-    [KeyboardButton(text="Показать меню")]
-], resize_keyboard=True, one_time_keyboard=True)
+    [KeyboardButton(text="Узнать количество баллов")],
+    [KeyboardButton(text="Посмотреть ассортимент")],
+    [KeyboardButton(text="Показать список мероприятий")],
+], resize_keyboard=True, one_time_keyboard=False)
 
 ADD_EVENT_KEYBOARD = ReplyKeyboardMarkup(keyboard=[
     [KeyboardButton(text="Волонтёрское благотворительное мероприятие в колледже")],

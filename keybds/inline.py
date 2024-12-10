@@ -15,12 +15,6 @@ ADMIN_KB = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text="отключить магазин", callback_data='stop_shop')],
 ])
 
-MENU_KEYBOARD = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text="посмотреть список мероприятий", callback_data='show_events_user')],
-    [InlineKeyboardButton(text="узнать количество баллов", callback_data='show_score')],
-    [InlineKeyboardButton(text="посмотреть ассортимент", callback_data='show_assortment')],
-])
-
 YES_NO_KB = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text="да", callback_data='yes'), InlineKeyboardButton(text="нет", callback_data='no')],
 ])
@@ -37,3 +31,7 @@ def get_callback_btns(
         keyboard.add(InlineKeyboardButton(text=text, callback_data=data))
 
     return keyboard.adjust(*sizes).as_markup()
+
+SEND_REQUEST = InlineKeyboardMarkup(inline_keyboard=[
+    [InlineKeyboardButton(text="отметить участие", callback_data='send_request')],
+]) #TODO в data должны передаваться данные о конкретном мероприятии (id мероприятие должен доставаться по названию)

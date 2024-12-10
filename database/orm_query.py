@@ -13,6 +13,7 @@ async def orm_add_event(session: AsyncSession, data: dict):
     session.add(event)
     await session.commit()
 
+#COMMENT Поиск ивента по event_id
 async def orm_get_event(session: AsyncSession, event_id: int):
     query = select(Event).where(Event.id == event_id)
     result = await session.execute(query)
@@ -23,6 +24,7 @@ async def orm_get_events(session: AsyncSession):
     result = await session.execute(query)
     return result.scalars().all()
 
+#COMMENT Изменить данные ивента
 async def orm_update_event(session: AsyncSession, event_id: int, data):
     query = update(Event).where(Event.id == event_id).values(
         event_name=data["set_event_name"],

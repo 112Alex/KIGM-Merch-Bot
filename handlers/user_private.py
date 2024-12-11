@@ -7,7 +7,9 @@ from aiogram.fsm.context import FSMContext
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from database.orm_query import orm_add_user, orm_get_events, orm_show_score, find_by_user_id
+from datetime import date
+
+from database.orm_query import orm_add_submission, orm_add_user, orm_get_events, orm_show_score, find_by_user_id
 
 from keybds.reply import *
 from keybds.inline import *
@@ -18,6 +20,7 @@ user_private_router = Router()
 user_private_router.message.filter(ChatTypeFilter(['private', 'group']))
 
 
+#COMMENT ОБРАБОТКА КОМАНДЫ /start
 @user_private_router.message(StateFilter(None), CommandStart())
 async def handle_start(msg: types.Message, session: AsyncSession, state: FSMContext):
     user_id = msg.from_user.id
@@ -26,7 +29,7 @@ async def handle_start(msg: types.Message, session: AsyncSession, state: FSMCont
     if result == None:
         await msg.answer(text=f'Привет, {msg.from_user.full_name}')
         await msg.answer(text=HELLO_TEXT) # Приветственный текст (хранится в переменном окружении)
-        await msg.answer(text='Выбирите, что вы хотите сделать:', reply_markup=AUTH_BTN)
+        await msg.answer(text='Пожалуйста, зарегестрируйтесь', reply_markup=AUTH_BTN)
     elif result != None:
         await msg.answer('вы авторизованы', reply_markup=SHOW_MENU_KB)
         await state.set_state(Authorized.zaglushka)
@@ -38,7 +41,7 @@ async def handle_start(msg: types.Message, session: AsyncSession, state: FSMCont
 #     print(f'/id call! ==> id:{msg.from_user.id} ник: @{msg.from_user.username} имя: {msg.from_user.first_name} {msg.from_user.last_name} ')
     
 
-#COMMENT КЛАССЫ СОСТОЯНИЙ
+#COMMENT КЛАССЫ МАШИНЫ СОСТОЯНИЙ FSM
 class Authorized(StatesGroup):
     zaglushka = State()
 
@@ -48,6 +51,12 @@ class Reg(StatesGroup):
     group = State()
     age = State()
     reg_confirmation = State()
+
+class Subm(StatesGroup):
+    event_id = State()
+    name = State()
+    confirmation = State()
+
 
 @user_private_router.callback_query(StateFilter(None), F.data == 'reg')
 async def add_user_firstname(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
@@ -84,6 +93,7 @@ async def user_info(msg: types.Message, state: FSMContext, session: AsyncSession
     await msg.answer(text='Всё верно?', reply_markup=YES_NO_KB)
     await state.set_state(Reg.reg_confirmation)
 
+#COMMENT ДОБАВЛЕНИЕ ПОЛЬЗОВАТЕЛЯ
 @user_private_router.callback_query(Reg.reg_confirmation, F.data == 'yes')
 async def add_user_confirmation(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
     user = callback.from_user
@@ -103,25 +113,35 @@ async def add_user_confirmation(callback: CallbackQuery, state: FSMContext, sess
     await callback.message.answer(f"Действие подтверждено\nВы зарегистрировались!")
     await state.set_state(Authorized.zaglushka)
 
+# перезапуск функции добавления пользователя
 @user_private_router.callback_query(Reg.reg_confirmation, F.data == 'no')
 async def add_user_confirmation(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
-    await callback.answer('Начните регистрацию заново')
+    await callback.answer('Действия отменены!')
     await state.clear()
-    await callback.message.answer('Выберите, что хотите сделать:', reply_markup=AUTH_BTN)
+    await callback.message.answer('Начните регистрацию заново', reply_markup=AUTH_BTN)
 
 #COMMENT ПОСМОТРЕТЬ АССОРТИМЕНТ
-@user_private_router.message(StateFilter(Authorized), F.text.lower() == 'показать меню')
-@user_private_router.message(StateFilter(Authorized), Command('menu'))
-async def menu(msg: types.Message, state: FSMContext):
-    await msg.answer(reply_markup=types.reply_keyboard_remove())
-    #TODO дописать
+# @user_private_router.message(StateFilter(Authorized), F.text.lower() == ' посмотреть ассортимент')
+# @user_private_router.message(StateFilter(Authorized))
+# async def menu(msg: types.Message, state: FSMContext):
+#     ...
+#     # await msg.answer(reply_markup=types.reply_keyboard_remove())
+#     #TODO дописать
 
-#COMMENT Показать волонтёрские мероприятия
+#COMMENT ПОКАЗАТЬ МЕРОПРИЯТИЯ
 @user_private_router.message(StateFilter(Authorized), F.text.lower() == 'показать список мероприятий')
 async def show_events(msg: types.Message, session: AsyncSession):
-    for event in await orm_get_events(session):
+    events = await orm_get_events(session)  # Получаем события
+    for event in events:
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="отправить заявку", callback_data=f"request:{event.id}")],
+        ])
+        
         await msg.answer(
-            f'<i>{event.event_type}</i>\n<strong>{event.event_name}</strong>\n\n<code>{event.event_date}</code>', parse_mode='html', reply_markup=SEND_REQUEST)
+            text=SHOW_EVENT_TEXT(event.id, event.event_type, event.event_name, event.event_date),
+            parse_mode='html', reply_markup=keyboard
+        )
+            
 
 #COMMENT УЗНАТЬ КОЛ-ВО БАЛЛОВ
 @user_private_router.message(StateFilter(Authorized), F.text.lower() == 'узнать количество баллов')
@@ -129,6 +149,35 @@ async def show_score(msg: types.Message, session: AsyncSession):
     result = await orm_show_score(session, int(msg.from_user.id))
     await msg.answer(f'Ваше количество накопленных баллов:\n{result}')
 
+#COMMENT ВЫБРАТЬ МЕРОПРИЯТИЕ ДЛЯ ЗАЯВКИ
+@user_private_router.callback_query(StateFilter(Authorized), F.data.startswith('request:'))
+async def submit_application(callback: CallbackQuery, state: FSMContext):
+    await state.set_state(Subm.event_id)
+    event_id = callback.data.split(':')[1]
+    await state.update_data(event_id = event_id)
+    await callback.message.answer(f"Напишите, что вы делали на данном мероприятии:")
+    await state.set_state(Subm.name)
 
+@user_private_router.message(Subm.name)
+async def submit_app_text(msg: types.Message, state: FSMContext):
+    await state.update_data(name = msg.text)
+    data = await state.get_data()
+    await msg.answer(f'{data}\nВсё верно?', reply_markup=YES_NO_KB)
+    await state.set_state(Subm.confirmation)
 
+@user_private_router.callback_query(Subm.confirmation, F.data == 'yes')
+async def subm_confirm_yes(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
+    data = await state.get_data()
+    event_id = int(data['event_id'])
+    text = data['name']
+    user_id = int(callback.from_user.id)
+    await orm_add_submission(session, text, date.today(), event_id, user_id)
+    await callback.answer()
+    await callback.message.answer('Действия подтверждены', reply_markup=SHOW_MENU_KB)
+    await state.set_state(Authorized.zaglushka)
 
+@user_private_router.callback_query(Subm.confirmation, F.data == 'no')
+async def subm_confirm_no(callback: CallbackQuery, state: FSMContext):
+    await callback.answer('Действия отменены')
+    await callback.message.answer('Действия отменены')
+    await state.set_state(Authorized.zaglushka)

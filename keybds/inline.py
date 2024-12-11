@@ -4,7 +4,6 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 AUTH_BTN = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text="зарегистрироваться", callback_data='reg')],
-    [InlineKeyboardButton(text="авторизироваться", callback_data='auth')],
 ])
 
 ADMIN_KB = InlineKeyboardMarkup(inline_keyboard=[
@@ -32,6 +31,9 @@ def get_callback_btns(
 
     return keyboard.adjust(*sizes).as_markup()
 
-SEND_REQUEST = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text="отметить участие", callback_data='send_request')],
-]) #TODO в data должны передаваться данные о конкретном мероприятии (id мероприятие должен доставаться по названию)
+
+# def SEND_REQUEST(data):
+#     keyboard = InlineKeyboardMarkup()
+#     button = InlineKeyboardButton(text="Отправить мой ID", callback_data=f"send_user_id:{data}")
+#     keyboard.add(button)
+#     return keyboard

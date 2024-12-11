@@ -1,7 +1,7 @@
 from sqlalchemy import select, update, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from database.models import Event, User
+from database.models import Event, Submission, User
 
 
 async def orm_add_event(session: AsyncSession, data: dict):
@@ -67,3 +67,14 @@ async def orm_show_score(session: AsyncSession, user_id: int):
     query = select(User.score).where(User.user_id == user_id)
     result = await session.execute(query)
     return result.scalar()
+
+#COMMENT создание заявки
+async def orm_add_submission(session: AsyncSession, text: str, date, event_id: int, user_id: int):
+    subm = Submission(
+        subm_text = text,
+        subm_date = date,
+        event_id = event_id,
+        user_id = user_id
+    )
+    session.add(subm)
+    await session.commit()

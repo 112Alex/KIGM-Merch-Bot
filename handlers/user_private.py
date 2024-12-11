@@ -162,7 +162,7 @@ async def submit_application(callback: CallbackQuery, state: FSMContext):
 async def submit_app_text(msg: types.Message, state: FSMContext):
     await state.update_data(name = msg.text)
     data = await state.get_data()
-    await msg.answer(f'{data}\nВсё верно?', reply_markup=YES_NO_KB)
+    await msg.answer(f'{data['name']}\nВсё верно?', reply_markup=YES_NO_KB)
     await state.set_state(Subm.confirmation)
 
 @user_private_router.callback_query(Subm.confirmation, F.data == 'yes')
@@ -181,3 +181,5 @@ async def subm_confirm_no(callback: CallbackQuery, state: FSMContext):
     await callback.answer('Действия отменены')
     await callback.message.answer('Действия отменены')
     await state.set_state(Authorized.zaglushka)
+
+

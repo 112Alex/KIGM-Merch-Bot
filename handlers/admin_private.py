@@ -192,6 +192,19 @@ async def edit_event(callback: CallbackQuery, state: FSMContext, session: AsyncS
     )
     await state.set_state(EventAdd.set_event_type)
 
+#COMMENT ПРОСМОТР ЗАЯВОК ВОЛОНТЁРОВ
+@admin_router.callback_query(StateFilter(None), F.data == 'show_applications')
+async def show_all_submissions(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
+    await callback.answer()
+    for subm in await orm_get_submissions(session):
+        user_id = subm.user_id
+        user = await find_by_user_id(session, user_id)
+        event = await orm_get_event(session, subm.event_id)
+        await callback.message.answer(
+            f'<strong>{user.first_name} {user.last_name} {user.group}</strong>\n<i>{subm.subm_text}</i>\n\n{event.event_name}',
+            parse_mode='html',
+            reply_markup=ADD_SCORE
+        )
 
 
 

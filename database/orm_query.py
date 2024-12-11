@@ -78,3 +78,10 @@ async def orm_add_submission(session: AsyncSession, text: str, date, event_id: i
     )
     session.add(subm)
     await session.commit()
+
+#COMMENT Показать все заявки
+async def orm_get_submissions(session: AsyncSession):
+    query = select(Submission)
+    result = await session.execute(query)
+    return result.scalars().all()
+    

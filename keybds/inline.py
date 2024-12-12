@@ -10,8 +10,6 @@ ADMIN_KB = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text="добавить мероприятие", callback_data='add_event')],
     [InlineKeyboardButton(text="посмотреть список мероприятий", callback_data='show_events')],
     [InlineKeyboardButton(text="посмотреть заявки", callback_data='show_applications')],
-    [InlineKeyboardButton(text="включить магазин", callback_data='run_shop')],
-    [InlineKeyboardButton(text="отключить магазин", callback_data='stop_shop')],
 ])
 
 YES_NO_KB = InlineKeyboardMarkup(inline_keyboard=[

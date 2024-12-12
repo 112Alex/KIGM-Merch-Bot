@@ -77,21 +77,34 @@ async def add_user_group(msg: types.Message, state: FSMContext, session: AsyncSe
 
 @user_private_router.message(Reg.group)
 async def add_user_age(msg: types.Message, state: FSMContext, session: AsyncSession):
-    await state.update_data(group = msg.text)
-    await msg.answer("Введите свой возраст (только число):")
-    await state.set_state(Reg.age)
+    if len(msg.text) <= 5:
+        await state.update_data(group = msg.text)
+        await state.set_state(Reg.age)
+        await msg.answer("Введите свой возраст (только число):")
+    else:
+        await msg.answer('Ввведено некорректное значение. Попробуйте ввести название группы снова')
+        return
+    
 
 @user_private_router.message(Reg.age)
 async def user_info(msg: types.Message, state: FSMContext, session: AsyncSession):
-    await state.update_data(age = msg.text)
-    data = await state.get_data()
-    data_arr = []
-    for item in data:
-        data_arr.append(str(data.get(item)))
-    await msg.answer(
-        text=f'Имя: {data_arr[0]}\nФамилия: {data_arr[1]}\nГруппа: {data_arr[2]}\nВозраст: {data_arr[3]}')
-    await msg.answer(text='Всё верно?', reply_markup=YES_NO_KB)
-    await state.set_state(Reg.reg_confirmation)
+    try:
+        if int(msg.text) > 14 and int(msg.text) < 99:
+            await state.update_data(age = msg.text)
+            data = await state.get_data()
+            data_arr = []
+            for item in data:
+                data_arr.append(str(data.get(item)))
+            await msg.answer(
+                text=f'Имя: {data_arr[0]}\nФамилия: {data_arr[1]}\nГруппа: {data_arr[2]}\nВозраст: {data_arr[3]}')
+            await msg.answer(text='Всё верно?', reply_markup=YES_NO_KB)
+            await state.set_state(Reg.reg_confirmation)
+        else:
+            await msg.answer('Введено некорректное значение. Попробуйте снова')
+            return
+    except ValueError:
+        await msg.answer('Введено некорректное значение. Попробуйте снова')
+        return
 
 #COMMENT ДОБАВЛЕНИЕ ПОЛЬЗОВАТЕЛЯ
 @user_private_router.callback_query(Reg.reg_confirmation, F.data == 'yes')
@@ -110,7 +123,7 @@ async def add_user_confirmation(callback: CallbackQuery, state: FSMContext, sess
     )
 
     await callback.answer()
-    await callback.message.answer(f"Действие подтверждено\nВы зарегистрировались!")
+    await callback.message.answer(f"Действие подтверждено\nВы зарегистрировались!", reply_markup=SHOW_MENU_KB)
     await state.set_state(Authorized.zaglushka)
 
 # перезапуск функции добавления пользователя
@@ -134,7 +147,7 @@ async def show_events(msg: types.Message, session: AsyncSession):
     events = await orm_get_events(session)  # Получаем события
     for event in events:
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="отправить заявку", callback_data=f"request:{event.id}")],
+            [InlineKeyboardButton(text="отметить участие", callback_data=f"request:{event.id}")],
         ])
         
         await msg.answer(
@@ -155,7 +168,7 @@ async def submit_application(callback: CallbackQuery, state: FSMContext):
     await state.set_state(Subm.event_id)
     event_id = callback.data.split(':')[1]
     await state.update_data(event_id = event_id)
-    await callback.message.answer(f"Напишите, что вы делали на данном мероприятии:")
+    await callback.message.answer(f"Подробно и достоверно опишите, что вы делали на данном мероприятии:")
     await state.set_state(Subm.name)
 
 @user_private_router.message(Subm.name)

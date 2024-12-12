@@ -6,6 +6,8 @@ from aiogram import Bot
 from aiogram import Dispatcher
 from aiogram import types
 
+from sqlalchemy.ext.asyncio import AsyncSession, async_session
+
 from dotenv import find_dotenv, load_dotenv
 
 load_dotenv(find_dotenv())
@@ -19,6 +21,7 @@ from handlers.user_group import user_group_router
 from handlers.admin_private import admin_router
 
 from common.bot_cmds_list import private
+from common import variables
 
 
 # ALLOWED_UPDATES = ['message', 'edited_message', 'callback_query']

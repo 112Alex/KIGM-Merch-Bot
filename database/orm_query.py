@@ -1,7 +1,8 @@
 from sqlalchemy import select, update, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from database.models import Event, Submission, User
+from common import variables
+from database.models import Event, Submission, User, Good, BoughtGood
 
 
 async def orm_add_event(session: AsyncSession, data: dict):
@@ -84,4 +85,21 @@ async def orm_get_submissions(session: AsyncSession):
     query = select(Submission)
     result = await session.execute(query)
     return result.scalars().all()
-    
+
+
+# GOODS = {
+#     "Чехол для телефона": 450.00,
+#     "Термос": 540.00,
+#     "Кружка": 400.00,
+#     "Обложка на паспорт": 360.00,
+#     "Обложка на студенческий билет": 380.00,
+#     "Картхолдер": 340.00
+# }
+
+# async def orm_add_goods(session: AsyncSession):
+#     async with session.begin():
+#         for name, price in GOODS.items():
+#             query = Good(name=name, price=price)
+#             session.add(query)
+#         await session.commit()
+

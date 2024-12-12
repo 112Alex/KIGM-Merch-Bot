@@ -26,7 +26,9 @@ class EventAdd(StatesGroup):
     event_for_change = None
 
     texts = {
-        'EventAdd:set_event_type': 'Выберите действие',
+        'EventAdd:set_event_type': 'Выберите тип мероприятия',
+        'EventAdd:set_event_name': 'Введите название мероприятия',
+        'EventAdd:set_event_date': 'Введите дату мероприятия (в формате ДД.ММ.ГГГГ)',
     }
 
 
@@ -38,7 +40,7 @@ async def admin_menu(msg: types.Message, state: FSMContext):
 
 @admin_router.callback_query(StateFilter(None), F.data == 'add_event')
 async def add_event_handler(callback: CallbackQuery, state: FSMContext):
-    await callback.message.answer(text='Выберите действие:', reply_markup=ADD_EVENT_KEYBOARD)
+    await callback.message.answer(text='Выберите тип мероприятия:', reply_markup=ADD_EVENT_KEYBOARD)
     await state.set_state(EventAdd.set_event_type)
 
 @admin_router.message(F.data)
@@ -62,7 +64,6 @@ async def cancel_handler(message: types.Message, state: FSMContext) -> None:
     await message.answer("Выберите действие:", reply_markup=ADMIN_KB)
 
 #COMMENT вернуться на шаг назад (на предыдущее состояние)
-#[x] не работает после обновления models.py
 @admin_router.message(StateFilter('*'), Command("назад"))
 @admin_router.message(StateFilter('*'), F.text.casefold() == "назад")
 async def back_step_handler(message: types.Message, state: FSMContext) -> None:
@@ -76,7 +77,7 @@ async def back_step_handler(message: types.Message, state: FSMContext) -> None:
     previous = None
     for step in EventAdd.__all_states__:
         if step.state == current_state:
-            await state.set_state(previous)
+            await state.set_state(previous) 
             await message.answer(f"Ок, вы вернулись к прошлому шагу \n {EventAdd.texts[previous.state]}")
             return
         previous = step
@@ -89,17 +90,9 @@ async def event_type_handler(msg: types.Message, state: FSMContext):
     await msg.answer(text=f"тип мероприятия выбран\n({msg.text})\nТеперь введите название мероприятия", reply_markup=types.ReplyKeyboardRemove())
     await state.set_state(EventAdd.set_event_name)
 
-#---#COMMENT----ПРЕДЫДУЩИЙ ВАРИАНТ ФУНКЦИИ ПРОВЕРКИ ВВОДА---------------
-# @admin_router.message(EventAdd.set_event, F.text.lower() == events[0].lower())
-# async def set_event_type(msg: types.Message, state: FSMContext):
-#     await state.update_data(set_event = msg.text)
-#     await msg.answer(text=f"мероприятие выбрано \n({msg.text})", reply_markup=types.ReplyKeyboardRemove())
-#     await state.set_state(EventAdd.zaglushka)
-
 @admin_router.message(EventAdd.set_event_type)
 async def event_type_handler(msg: types.Message, state: FSMContext):
     await msg.answer(text="вы ввели некорректное значение")
-
 
 #COMMENT Ловим данные для состояния set_event_name и меняем состояние на set_event_date
 @admin_router.message(EventAdd.set_event_name, or_f(F.text, F.text == '.'))
@@ -112,7 +105,7 @@ async def event_date_handler(msg: types.Message, state: FSMContext):
             return
         await state.update_data(set_event_name = msg.text)
     await msg.answer(
-        text=f"название мероприятия выбрано\n({msg.text})\nТеперь укажите дату мероприятия",
+        text=f"название мероприятия выбрано\n({msg.text})\nТеперь введите дату мероприятия\n в формате - ДД.ММ.ГГГГ",
         reply_markup=types.ReplyKeyboardRemove()
         )
     await state.set_state(EventAdd.set_event_date)

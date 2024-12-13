@@ -70,7 +70,7 @@ async def orm_show_score(session: AsyncSession, user_id: int):
     return result.scalar()
 
 #COMMENT создание заявки
-async def orm_add_submission(session: AsyncSession, text: str, date, event_id: int, user_id: int):
+async def orm_add_submission(session: AsyncSession, text: str, date: str, event_id: int, user_id: int):
     subm = Submission(
         subm_text = text,
         subm_date = date,
@@ -86,20 +86,4 @@ async def orm_get_submissions(session: AsyncSession):
     result = await session.execute(query)
     return result.scalars().all()
 
-
-# GOODS = {
-#     "Чехол для телефона": 450.00,
-#     "Термос": 540.00,
-#     "Кружка": 400.00,
-#     "Обложка на паспорт": 360.00,
-#     "Обложка на студенческий билет": 380.00,
-#     "Картхолдер": 340.00
-# }
-
-# async def orm_add_goods(session: AsyncSession):
-#     async with session.begin():
-#         for name, price in GOODS.items():
-#             query = Good(name=name, price=price)
-#             session.add(query)
-#         await session.commit()
 

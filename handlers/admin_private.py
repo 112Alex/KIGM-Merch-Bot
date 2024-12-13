@@ -194,7 +194,7 @@ async def show_all_submissions(callback: CallbackQuery, state: FSMContext, sessi
         user = await find_by_user_id(session, user_id)
         event = await orm_get_event(session, subm.event_id)
         await callback.message.answer(
-            f'<strong>{user.first_name} {user.last_name} {user.group}</strong>\n<i>{subm.subm_text}</i>\n\n{event.event_name}',
+            f'<strong>{user.first_name} {user.last_name} {user.group}</strong>\n<i>{subm.subm_text}</i>\n\n{event.event_name}\nДата:{subm.subm_date}',
             parse_mode='html',
             reply_markup=ADD_SCORE
         )

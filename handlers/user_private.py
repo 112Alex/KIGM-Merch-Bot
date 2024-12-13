@@ -7,8 +7,6 @@ from aiogram.fsm.context import FSMContext
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from datetime import date
-
 from database.orm_query import orm_add_submission, orm_add_user, orm_get_events, orm_show_score, find_by_user_id
 
 from keybds.reply import *
@@ -55,6 +53,7 @@ class Reg(StatesGroup):
 class Subm(StatesGroup):
     event_id = State()
     name = State()
+    subm_date = State()
     confirmation = State()
 
 
@@ -142,16 +141,17 @@ async def add_user_confirmation(callback: CallbackQuery, state: FSMContext, sess
 #     #TODO дописать
 
 #COMMENT ПОКАЗАТЬ МЕРОПРИЯТИЯ
-@user_private_router.message(StateFilter(Authorized), F.text.lower() == 'показать список мероприятий')
+@user_private_router.message(StateFilter(Authorized), F.text.lower() == 'получить баллы')
 async def show_events(msg: types.Message, session: AsyncSession):
-    events = await orm_get_events(session)  # Получаем события
+    events = await orm_get_events(session)
+    await msg.answer('Вот список мероприятий:')
     for event in events:
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="отметить участие", callback_data=f"request:{event.id}")],
         ])
         
         await msg.answer(
-            text=SHOW_EVENT_TEXT(event.id, event.event_type, event.event_name, event.event_date),
+            text=SHOW_EVENT_TEXT(event.event_type, event.event_name, event.event_date),
             parse_mode='html', reply_markup=keyboard
         )
             
@@ -174,8 +174,14 @@ async def submit_application(callback: CallbackQuery, state: FSMContext):
 @user_private_router.message(Subm.name)
 async def submit_app_text(msg: types.Message, state: FSMContext):
     await state.update_data(name = msg.text)
+    await msg.answer('Теперь введите дату или промежуток времени, когда вы принимали участие в мероприятии')
+    await state.set_state(Subm.subm_date)
+
+@user_private_router.message(Subm.subm_date)
+async def submit_app_date(msg: types.Message, state: FSMContext):
+    await state.update_data(subm_date = msg.text)
     data = await state.get_data()
-    await msg.answer(f'{data['name']}\nВсё верно?', reply_markup=YES_NO_KB)
+    await msg.answer(f'{data['name']}\n{data['subm_date']}\nВсё верно?', reply_markup=YES_NO_KB)
     await state.set_state(Subm.confirmation)
 
 @user_private_router.callback_query(Subm.confirmation, F.data == 'yes')
@@ -183,8 +189,9 @@ async def subm_confirm_yes(callback: CallbackQuery, state: FSMContext, session: 
     data = await state.get_data()
     event_id = int(data['event_id'])
     text = data['name']
+    sdate = data['subm_date']
     user_id = int(callback.from_user.id)
-    await orm_add_submission(session, text, date.today(), event_id, user_id)
+    await orm_add_submission(session, text, sdate, event_id, user_id)
     await callback.answer()
     await callback.message.answer('Действия подтверждены', reply_markup=SHOW_MENU_KB)
     await state.set_state(Authorized.zaglushka)

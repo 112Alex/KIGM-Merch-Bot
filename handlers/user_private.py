@@ -7,7 +7,12 @@ from aiogram.fsm.context import FSMContext
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from database.orm_query import orm_add_submission, orm_add_user, orm_get_events, orm_show_score, find_by_user_id
+from database.orm_query import (
+    orm_add_submission, orm_add_user, orm_check_score,
+    orm_get_events, orm_get_goods,
+    orm_show_score, find_by_user_id,
+    orm_get_good, orm_add_bought_good
+    )
 
 from keybds.reply import *
 from keybds.inline import *
@@ -55,6 +60,11 @@ class Subm(StatesGroup):
     name = State()
     subm_date = State()
     confirmation = State()
+
+class Good_buying(StatesGroup):
+    good_choice = State()
+    confirmation = State()
+    price = State()
 
 
 @user_private_router.callback_query(StateFilter(None), F.data == 'reg')
@@ -132,14 +142,6 @@ async def add_user_confirmation(callback: CallbackQuery, state: FSMContext, sess
     await state.clear()
     await callback.message.answer('Начните регистрацию заново', reply_markup=AUTH_BTN)
 
-#COMMENT ПОСМОТРЕТЬ АССОРТИМЕНТ
-# @user_private_router.message(StateFilter(Authorized), F.text.lower() == ' посмотреть ассортимент')
-# @user_private_router.message(StateFilter(Authorized))
-# async def menu(msg: types.Message, state: FSMContext):
-#     ...
-#     # await msg.answer(reply_markup=types.reply_keyboard_remove())
-#     #TODO дописать
-
 #COMMENT ПОКАЗАТЬ МЕРОПРИЯТИЯ
 @user_private_router.message(StateFilter(Authorized), F.text.lower() == 'получить баллы')
 async def show_events(msg: types.Message, session: AsyncSession):
@@ -168,7 +170,7 @@ async def submit_application(callback: CallbackQuery, state: FSMContext):
     await state.set_state(Subm.event_id)
     event_id = callback.data.split(':')[1]
     await state.update_data(event_id = event_id)
-    await callback.message.answer(f"Подробно и достоверно опишите, что вы делали на данном мероприятии:")
+    await callback.message.answer(f"Подробно и достоверно опишите, что вы делали на данном мероприятии:", reply_markup=types.ReplyKeyboardRemove())
     await state.set_state(Subm.name)
 
 @user_private_router.message(Subm.name)
@@ -201,5 +203,61 @@ async def subm_confirm_no(callback: CallbackQuery, state: FSMContext):
     await callback.answer('Действия отменены')
     await callback.message.answer('Действия отменены')
     await state.set_state(Authorized.zaglushka)
+
+
+#COMMENT ПРОСМОТР АССОРТИМЕНТА
+@user_private_router.message(StateFilter(Authorized), F.text.lower() == 'купить мерч')
+async def show_goods(msg: types.Message, state: FSMContext, session: AsyncSession):
+    await msg.answer('Вот список товаров:', reply_markup=types.ReplyKeyboardRemove())
+    goods = await orm_get_goods(session)
+
+    for good in goods:
+        keyboard_good = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="купить", callback_data=f"good:{good.id}:{good.price}")],
+        ])
+        await msg.answer(f'{good.name}\nСтоимость: {good.price}', parse_mode='html', reply_markup=keyboard_good)
+    
+    await state.set_state(Good_buying.good_choice)
+
+@user_private_router.callback_query(Good_buying.good_choice, F.data.startswith('good:'))
+async def show_confirm(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
+    good_id = callback.data.split(':')[1]
+    good_price = callback.data.split(':')[2]
+    user_id = callback.from_user.id
+
+    await state.update_data(good_choice=good_id)
+    await state.set_state(Good_buying.price)
+    await state.update_data(price = good_price)
+
+    good = await orm_get_good(session, int(good_id))  # Получаем товар по ID, а не по имени
+    await callback.answer()
+    
+    if await orm_check_score(session, float(good_price), int(user_id)) == True:
+        await callback.message.answer(f'Вы действительно хотите купить {good.name} за {good.price}?', reply_markup=YES_NO_KB)
+        await state.set_state(Good_buying.confirmation)
+    else:
+        await callback.message.answer('У вас не хватает баллов!', reply_markup=SHOW_MENU_KB)
+        await state.set_state(Authorized.zaglushka)
+    
+
+# ДА
+@user_private_router.callback_query(Good_buying.confirmation, F.data == 'yes')
+async def show_confirm(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
+    data = await state.get_data()
+    user_id = int(callback.from_user.id)
+    good_id = int(data['good_choice'])
+    good_price = float(data['price'])
+
+    await orm_add_bought_good(session, good_id, user_id, good_price)
+
+    await callback.answer()
+    await callback.message.answer('Действия подтверждены', reply_markup=SHOW_MENU_KB)
+    await state.set_state(Authorized.zaglushka)
+# НЕТ
+@user_private_router.callback_query(Good_buying.confirmation, F.data == 'no')
+async def show_confirm(callback: CallbackQuery, state: FSMContext):
+    await callback.answer()
+    await state.set_state(Authorized.zaglushka)
+    await callback.message.answer('Действия отменены', reply_markup=SHOW_MENU_KB)
 
 

@@ -26,14 +26,6 @@ GOODS = {
     "Картхолдер": 340.00
 }
 
-# async def add_goods():
-#     session = AsyncSession
-#     async with engine.begin():
-#         for name, price in GOODS.items():
-#             query = Good(name=name, price=price)
-#             session.add(query)
-#         await session.commit()
-
 async def add_goods():
     async with AsyncSession(engine) as session:
         async with session.begin():

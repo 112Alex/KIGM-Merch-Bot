@@ -1,5 +1,5 @@
 from aiogram import F, Router, types
-from aiogram.types import CallbackQuery
+from aiogram.types import CallbackQuery, InlineKeyboardMarkup
 from aiogram.filters import Command, StateFilter, or_f
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.context import FSMContext
@@ -31,10 +31,15 @@ class EventAdd(StatesGroup):
         'EventAdd:set_event_date': 'Введите дату мероприятия (в формате ДД.ММ.ГГГГ)',
     }
 
+class UserScore(StatesGroup):
+    score = State()
+    submission_id = State()
+    userId = State()
 
 @admin_router.message(Command("admin_menu"))
 async def admin_menu(msg: types.Message, state: FSMContext):
     await state.clear()
+    await msg.answer('вы вошли как админ', reply_markup=types.ReplyKeyboardRemove())
     await msg.answer(text='меню:', reply_markup=ADMIN_KB)
 
 
@@ -193,13 +198,51 @@ async def show_all_submissions(callback: CallbackQuery, state: FSMContext, sessi
         user_id = subm.user_id
         user = await find_by_user_id(session, user_id)
         event = await orm_get_event(session, subm.event_id)
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="начислить баллы", callback_data=f"score:{user_id}:{subm.id}")],
+        ])
         await callback.message.answer(
             f'<strong>{user.first_name} {user.last_name} {user.group}</strong>\n<i>{subm.subm_text}</i>\n\n{event.event_name}\nДата:{subm.subm_date}',
             parse_mode='html',
-            reply_markup=ADD_SCORE
+            reply_markup=keyboard
         )
+    await state.set_state(UserScore.userId)
 
+#COMMENT ВЫДАЧА БАЛЛОВ
+@admin_router.callback_query(UserScore.userId, F.data.startswith('score:'))
+async def add_score1(callback: CallbackQuery, state: FSMContext):
+    user_id = callback.data.split(":")[1]
+    await state.update_data(userId = user_id)
 
+    await state.set_state(UserScore.submission_id)
+    subm_id = callback.data.split(":")[2]
+    await state.update_data(submission_id = subm_id)
 
+    await callback.message.delete()
+    await callback.answer()
+    await callback.message.answer('Введите, сколько баллов вы хотите начислить (только число):')
 
-#TODO Дописать остальные админ-функции
+    await state.set_state(UserScore.score)
+
+@admin_router.message(UserScore.score)
+async def add_score2(msg: types.Message, state: FSMContext, session: AsyncSession):
+    await state.update_data(score = msg.text)
+
+    data = await state.get_data()
+    score = int(data['score'])
+    user_id = int(data['userId'])
+    subm_id = int(data['submission_id'])
+    await orm_delete_subm(session, subm_id)
+
+    await orm_add_score(session, user_id, score)
+    await msg.answer('Баллы зачислены!')
+    await state.clear()
+
+#COMMENT ПРОСМОТР КУПЛЕННОГО МЕРЧА
+@admin_router.callback_query(StateFilter(None), F.data == 'show_bought_goods')
+async def show_bought_goods(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
+    await callback.answer()
+    for good in await orm_get_bought_goods(session):
+        item = await orm_get_good(session, int(good[0]))
+        await callback.message.answer(f'{item.name}: {good[1]}')
+

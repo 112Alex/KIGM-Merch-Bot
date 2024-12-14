@@ -26,7 +26,7 @@ class User(Base):
     last_name = Column(Text, nullable=False)
     age = Column(Integer, nullable=False)
     group = Column(Text, nullable=False)
-    score = Column(Integer)
+    score = Column(BigInteger)
 
     submissions = relationship("Submission", back_populates="user")
     bought_goods = relationship("BoughtGood", back_populates="user")
@@ -62,7 +62,7 @@ class BoughtGood(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(BigInteger, ForeignKey('users.user_id'), nullable=False)
-    goods_id = Column(Integer, ForeignKey('goods.id'), nullable=False)
+    goods_id = Column(Integer, ForeignKey('goods.id', ondelete='CASCADE'), nullable=False)
 
     user = relationship("User", back_populates="bought_goods")
     good = relationship("Good", back_populates="bought_goods")

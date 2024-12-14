@@ -4,7 +4,7 @@ from aiogram.utils.keyboard import ReplyKeyboardBuilder
 
 SHOW_MENU_KB = ReplyKeyboardMarkup(keyboard=[
     [KeyboardButton(text="Узнать количество баллов")],
-    [KeyboardButton(text="Посмотреть ассортимент")],
+    [KeyboardButton(text="Купить мерч")],
     [KeyboardButton(text="Получить баллы")],
 ], resize_keyboard=True, one_time_keyboard=False)
 

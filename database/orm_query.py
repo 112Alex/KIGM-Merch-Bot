@@ -1,4 +1,4 @@
-from sqlalchemy import select, update, delete
+from sqlalchemy import func, select, update, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from common import variables
@@ -83,7 +83,84 @@ async def orm_add_submission(session: AsyncSession, text: str, date: str, event_
 #COMMENT Показать все заявки
 async def orm_get_submissions(session: AsyncSession):
     query = select(Submission)
+    results = await session.execute(query)
+    return results.scalars().all()
+
+#COMMENT Удалить заявку
+async def orm_delete_subm(session: AsyncSession, subm_id):
+    query = delete(Submission).where(Submission.id == subm_id)
+    await session.execute(query)
+    await session.commit()
+
+#COMMENT Посмотреть ассортимент
+async def orm_get_goods(session: AsyncSession):
+    query = select(Good)
+    results = await session.execute(query)
+    return results.scalars().all()
+
+#COMMENT Найти товар по id
+async def orm_get_good(session: AsyncSession, good_id: int):
+    query = select(Good).where(Good.id == good_id)
     result = await session.execute(query)
-    return result.scalars().all()
+    return result.scalar()
 
+#COMMENT Добавить купленный товар и списать баллы
+async def orm_add_bought_good(session: AsyncSession, good_id: int, userId: int, amount: float):
+    result = await session.execute(select(User).where(User.user_id == userId))
+    user = result.scalar_one_or_none()
 
+    if user is None:
+        raise Exception("Пользователь не найден")
+
+    if user.score < amount:
+        raise Exception("Недостаточно баллов на счете")
+
+    bought_good = BoughtGood(
+        user_id=userId,
+        goods_id=good_id
+    )
+
+    user.score -= amount
+
+    session.add(bought_good)
+    session.add(user)
+
+    await session.commit()
+    
+
+#COMMENT Посмотреть купленные товары
+async def orm_get_bought_goods(session: AsyncSession):
+    stmt = select(
+        BoughtGood.goods_id, 
+        func.count(BoughtGood.id).label('count')
+    ).group_by(BoughtGood.goods_id)
+
+    result = await session.execute(stmt)
+    counts = result.all()
+
+    return counts
+
+#COMMENT Добавить баллы
+async def orm_add_score(session: AsyncSession, userId: int, score: int):
+    query = select(User).where(User.user_id == userId)
+    result = await session.execute(query)
+    user = result.scalar()
+    if user.score is None:
+            user.score = 0
+    user.score += score
+    await session.commit()
+
+#COMMENT Проверка на достаточное количество баллов при покупке
+async def orm_check_score(session: AsyncSession, n: int, user_id: int):
+    query = select(User).where(User.user_id == user_id)
+    result = await session.execute(query)
+    user = result.scalar_one_or_none()
+
+    # Проверяем, существует ли пользователь
+    if user is None:
+        return f"User with id {user_id} not found."
+    
+    if user.score is None:
+        return False
+    else:
+        return int(user.score) >= n

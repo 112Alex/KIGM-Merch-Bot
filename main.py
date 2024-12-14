@@ -37,7 +37,7 @@ dp.include_router(admin_router)
 async def on_startup(bot):
     # await drop_db()
     await create_db()
-    await add_goods()
+    # await add_goods()
 
 async def on_shutdown(bot):
     print('бот лёг')

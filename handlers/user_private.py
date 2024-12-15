@@ -8,7 +8,7 @@ from aiogram.fsm.context import FSMContext
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database.orm_query import (
-    orm_add_submission, orm_add_user, orm_check_score,
+    orm_add_submission, orm_add_user, orm_check_score, orm_check_user_goods,
     orm_get_events, orm_get_goods,
     orm_show_score, find_by_user_id,
     orm_get_good, orm_add_bought_good
@@ -233,8 +233,13 @@ async def show_confirm(callback: CallbackQuery, state: FSMContext, session: Asyn
     await callback.answer()
     
     if await orm_check_score(session, float(good_price), int(user_id)) == True:
-        await callback.message.answer(f'Вы действительно хотите купить {good.name} за {good.price}?', reply_markup=YES_NO_KB)
-        await state.set_state(Good_buying.confirmation)
+        if await orm_check_user_goods(session, int(user_id), int(good_id)) == False:
+            await callback.message.answer(f'Вы действительно хотите купить {good.name} за {good.price}?', reply_markup=YES_NO_KB)
+            await state.set_state(Good_buying.confirmation)
+        else:
+            await callback.message.answer('Вы уже покупали этот товар!', reply_markup=SHOW_MENU_KB)
+            await state.set_state(Authorized.zaglushka)
+            return
     else:
         await callback.message.answer('У вас не хватает баллов!', reply_markup=SHOW_MENU_KB)
         await state.set_state(Authorized.zaglushka)

@@ -1,5 +1,6 @@
+import os
 from aiogram import F, Router, types
-from aiogram.types import CallbackQuery, InlineKeyboardMarkup
+from aiogram.types import CallbackQuery, InlineKeyboardMarkup, FSInputFile
 from aiogram.filters import Command, StateFilter, or_f
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.context import FSMContext
@@ -240,9 +241,25 @@ async def add_score2(msg: types.Message, state: FSMContext, session: AsyncSessio
 
 #COMMENT ПРОСМОТР КУПЛЕННОГО МЕРЧА
 @admin_router.callback_query(StateFilter(None), F.data == 'show_bought_goods')
-async def show_bought_goods(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
+async def show_bought_goods(callback: CallbackQuery, session: AsyncSession):
     await callback.answer()
     for good in await orm_get_bought_goods(session):
         item = await orm_get_good(session, int(good[0]))
         await callback.message.answer(f'{item.name}: {good[1]}')
+
+#COMMENT СКАЧАТЬ XCEL-ФАЙЛ С КУПЛЕННЫМИ ТОВАРАМИ
+@admin_router.callback_query(StateFilter(None), F.data == 'get_excel')
+async def send_file_with_bought_goods(callback: types.CallbackQuery, session: AsyncSession):
+    await export_goods_to_excel(session)
+    file_path = os.path.join(os.getcwd(), 'bought_goods.xlsx')
+
+    if os.path.exists(file_path):
+        input_file = FSInputFile(file_path)
+        await callback.message.answer_document(input_file)
+    else:
+        await callback.message.answer("Файл не найден.")
+        
+    await callback.answer()
+    
+
 

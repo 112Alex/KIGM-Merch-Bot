@@ -58,61 +58,13 @@ class Submission(Base):
 
 
 class BoughtGood(Base):
-    __tablename__ = 'buyed_goods'
+    __tablename__ = 'bought_goods'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(BigInteger, ForeignKey('users.user_id'), nullable=False)
+    user_id = Column(BigInteger, ForeignKey('users.user_id', ondelete='CASCADE'), nullable=False)
     goods_id = Column(Integer, ForeignKey('goods.id', ondelete='CASCADE'), nullable=False)
 
     user = relationship("User", back_populates="bought_goods")
     good = relationship("Good", back_populates="bought_goods")
-
-
-
-
-#NOTE старая версия модели (не работает)
-# class Base(DeclarativeBase):
-#     ...
-# class Event(Base):
-#     __tablename__ = 'event'
-#     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-#     event_name: Mapped[str] = mapped_column(Text)
-#     event_date: Mapped[str] = mapped_column(Text)
-#     event_type: Mapped[str] = mapped_column(Text)
-# class User(Base):
-#     __tablename__ = "user"
-#     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-#     user_id: Mapped[int] = mapped_column(BigInteger, unique=True)
-#     name: Mapped[str] = mapped_column(Text)
-#     age: Mapped[int] = mapped_column(SmallInteger)
-#     group: Mapped[str] = mapped_column(Text)
-#     score: Mapped[int] = mapped_column(Integer)
-# class Submission(Base):
-#     __tablename__ = "submission"
-#     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-#     subm_text: Mapped[str] = mapped_column(Text)
-#     subm_date: Mapped[date] = mapped_column(Date)
-#     event_id: Mapped[int] = mapped_column(ForeignKey('event.id', ondelete='CASCADE'), nullable=False)
-#     user_id: Mapped[int] = mapped_column(ForeignKey('user.user_id', ondelete='CASCADE'), nullable=False)
-#     event: Mapped['Event'] = relationship(backref='submission')
-#     user: Mapped['User'] = relationship(backref='submission')
-# class Goods(Base):
-#     __tablename__ = "goods"
-#     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-#     name: Mapped[str] = mapped_column(Text)
-#     price: Mapped[float] = mapped_column(Numeric(8,2), nullable=False)
-#     icon_path: Mapped[str] = mapped_column(Text)
-#     description: Mapped[str] = mapped_column(Text)
-# class Buyed_Goods(Base):
-#     __tablename__ = "buyed_goods"
-#     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-#     user_id: Mapped[int] = mapped_column(ForeignKey('user.user_id', ondelete='CASCADE'), nullable=False)
-#     goods_id: Mapped[int] = mapped_column(ForeignKey('goods.id', ondelete='CASCADE'), nullable=False)
-#     goods: Mapped['Goods'] = relationship(backref='buyed_goods')
-#     user_id: Mapped['User'] = relationship(backref='buyed_goods')
-
-
-
-
 
 

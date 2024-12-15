@@ -1,5 +1,7 @@
 from os import getenv
+
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.future import select
 
 from database.models import Base, Good
 
@@ -33,3 +35,7 @@ async def add_goods():
                 query = Good(name=name, price=price)
                 session.add(query)
         await session.commit()
+
+
+
+

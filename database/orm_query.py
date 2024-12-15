@@ -1,8 +1,11 @@
+import os
 from sqlalchemy import func, select, update, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from common import variables
 from database.models import Event, Submission, User, Good, BoughtGood
+
+from openpyxl import Workbook
 
 
 async def orm_add_event(session: AsyncSession, data: dict):
@@ -164,3 +167,48 @@ async def orm_check_score(session: AsyncSession, n: int, user_id: int):
         return False
     else:
         return int(user.score) >= n
+    
+#COMMENT проверка на наличие товара у пользователя
+async def orm_check_user_goods(session: AsyncSession, user_id: int, good_id: int):
+    query = select(BoughtGood).where(
+    BoughtGood.user_id == user_id,
+    BoughtGood.goods_id == good_id
+    )
+    result = await session.execute(query)
+    b_good = result.scalar_one_or_none()  # Это вернет первую строку или None
+
+    if b_good is not None:
+        # Если нашел товары, можно выполнить нужные действия
+        return True
+    
+    return False  # Если нет товаров у пользователя
+    
+#COMMENT экспорт записей о купленном мерче в Xcel
+async def export_goods_to_excel(session: AsyncSession):
+    """Экспорт товаров в файл Excel."""
+
+    goods = await session.execute(select(Good))  # Получаем все товары из базы данных
+    bought_goods = await session.execute(select(BoughtGood))
+    users = await session.execute(select(User))
+    goods = goods.scalars().all()
+    bought_goods = bought_goods.scalars().all()
+    users = users.scalars().all()
+
+    # Создаем новый Excel-файл
+    workbook = Workbook()
+    ws = workbook.active
+    ws.title = "Goods"
+        
+    ws.append(['tg-id', 'название товара', 'имя', 'фамилия', 'группа', 'возраст'])
+        
+    for b_good in bought_goods:
+        # Добавляем данные о товаре в Excel
+        good = await session.execute(select(Good).where(Good.id == b_good.goods_id))
+        good = good.scalar()
+        user = await session.execute(select(User).where(User.user_id == b_good.user_id))
+        user = user.scalar()
+        ws.append([user.user_id, good.name, user.first_name, user.last_name, user.group, user.age])
+
+        # Сохраняем файл
+        workbook.save("bought_goods.xlsx")
+        # print("Данные успешно экспортированы в goods.xlsx")

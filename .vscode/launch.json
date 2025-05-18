@@ -9,6 +9,7 @@
             "type": "debugpy",
             "request": "launch",
             "program": "main.py",
+            "python": ".venv/Scripts/python.exe",
             "console": "integratedTerminal"
         }
     ]

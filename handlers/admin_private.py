@@ -1,9 +1,10 @@
-import os
 from aiogram import F, Router, types
 from aiogram.types import CallbackQuery, InlineKeyboardMarkup, FSInputFile
 from aiogram.filters import Command, StateFilter, or_f
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.context import FSMContext
+
+from pydantic import ValidationError # Import ValidationError
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,6 +12,9 @@ from filters.chat_types import ChatTypeFilter, IsAdmin
 from keybds.inline import *
 from keybds.reply import *
 from database.orm_query import *
+from utils.excel_generator import generate_bought_goods_excel
+from database.orm_query import orm_get_formatted_bought_goods_data
+from schemas import EventSchema # Import EventSchema
 
 
 admin_router = Router()
@@ -24,8 +28,6 @@ class EventAdd(StatesGroup):
     set_event_date = State()
     event_confirmation = State()
 
-    event_for_change = None
-
     texts = {
         'EventAdd:set_event_type': 'Выберите тип мероприятия',
         'EventAdd:set_event_name': 'Введите название мероприятия',
@@ -35,7 +37,7 @@ class EventAdd(StatesGroup):
 class UserScore(StatesGroup):
     score = State()
     submission_id = State()
-    userId = State()
+    user_id = State()
 
 @admin_router.message(Command("admin_menu"))
 async def admin_menu(msg: types.Message, state: FSMContext):
@@ -62,8 +64,6 @@ async def cancel_handler(message: types.Message, state: FSMContext) -> None:
     current_state = await state.get_state()
     if current_state is None:
         return
-    if EventAdd.event_for_change:
-        EventAdd.event_for_change = None
 
     await state.clear()
     await message.answer("Действия отменены", reply_markup=types.ReplyKeyboardRemove())
@@ -102,16 +102,23 @@ async def event_type_handler(msg: types.Message, state: FSMContext):
 
 #COMMENT Ловим данные для состояния set_event_name и меняем состояние на set_event_date
 @admin_router.message(EventAdd.set_event_name, or_f(F.text, F.text == '.'))
-async def event_date_handler(msg: types.Message, state: FSMContext):
+async def event_date_handler(msg: types.Message, state: FSMContext, session: AsyncSession):
+    data = await state.get_data()
+    event_for_change_id = data.get('event_for_change_id')
+    event_for_change = None
+    if event_for_change_id:
+        event_for_change = await orm_get_event(session, event_for_change_id)
+
     if msg.text == '.':
-        await state.update_data(set_event_name = EventAdd.event_for_change.event_name)
-    else:
-        if len(msg.text) > 150:
-            await msg.answer("Название мероприятия не должно превышать 150 символов\nВведите заново")
+        if event_for_change:
+            await state.update_data(set_event_name = event_for_change.event_name)
+        else:
+            await msg.answer("Не удалось найти изменяемое мероприятие. Введите название мероприятия.", reply_markup=types.ReplyKeyboardRemove())
             return
+    else:
         await state.update_data(set_event_name = msg.text)
     await msg.answer(
-        text=f"название мероприятия выбрано\n({msg.text})\nТеперь введите дату мероприятия\n в формате - ДД.ММ.ГГГГ",
+        text=f"название мероприятия выбрано\n({data.get('set_event_name') or msg.text})\nТеперь введите дату мероприятия\n в формате - ДД.ММ.ГГГГ",
         reply_markup=types.ReplyKeyboardRemove()
         )
     await state.set_state(EventAdd.set_event_date)
@@ -120,23 +127,41 @@ async def event_date_handler(msg: types.Message, state: FSMContext):
 async def event_info(msg: types.Message, state: FSMContext):
     await state.update_data(set_event_date = msg.text)
     data = await state.get_data()
-    data_arr = []
-    for item in data:
-        data_arr.append(str(data.get(item)))
-    await msg.answer(text=f'мероприятие добавлено\nТип: {data_arr[0]}\nНазвание: {data_arr[1]}\nДата: {data_arr[2]}')
-    await msg.answer(text='Всё верно?', reply_markup=YES_NO_KB)
-    await state.set_state(EventAdd.event_confirmation)
+
+    try:
+        validated_event = EventSchema(
+            set_event_type=data['set_event_type'],
+            set_event_name=data['set_event_name'],
+            set_event_date=data['set_event_date']
+        )
+        # Store the validated date back into FSMContext as a datetime.date object
+        await state.update_data(set_event_date=validated_event.set_event_date)
+        
+        await msg.answer(text=f"мероприятие добавлено\nТип: {validated_event.set_event_type}\nНазвание: {validated_event.set_event_name}\nДата: {validated_event.set_event_date.strftime('%d.%m.%Y')}")
+        await msg.answer(text='Всё верно?', reply_markup=YES_NO_KB)
+        await state.set_state(EventAdd.event_confirmation)
+    except ValidationError as e:
+        await msg.answer(f"Ошибка валидации данных мероприятия: {e.errors()[0]['msg']}\nВведите дату мероприятия заново в формате ДД.ММ.ГГГГ")
+        return
 
 #COMMENT Подтверждение добавления мероприятия
 @admin_router.callback_query(EventAdd.event_confirmation, F.data == 'yes')
 async def event_confirmation(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
     await state.update_data(event_confirmation = F.data)
     data = await state.get_data()
+    event_for_change_id = data.get('event_for_change_id') # Retrieve event_for_change_id from state
     try:
-        if EventAdd.event_for_change:
-            await orm_update_event(session, EventAdd.event_for_change.id, data)
+        # Create a new dictionary with the data to ensure it's clean and contains only schema fields
+        event_data_for_orm = {
+            "set_event_type": data['set_event_type'],
+            "set_event_name": data['set_event_name'],
+            "set_event_date": data['set_event_date'] # This is already a datetime.date object
+        }
+
+        if event_for_change_id: # Use event_for_change_id from state
+            await orm_update_event(session, event_for_change_id, event_data_for_orm)
         else:
-            await orm_add_event(session, data)
+            await orm_add_event(session, event_data_for_orm)
         await callback.answer()
         await callback.message.answer("Действие подтверждено\nМероприятие добавлено")
         await state.clear()
@@ -145,8 +170,6 @@ async def event_confirmation(callback: CallbackQuery, state: FSMContext, session
         await callback.message.answer(
             f"Ошибка: \n{str(e)}\n Обратитесь к разработчику", reply_markup=ADMIN_KB)
         await state.clear()
-    
-    EventAdd.event_for_change = None
 
 @admin_router.callback_query(EventAdd.event_confirmation, F.data == 'no')
 async def event_confirmation(callback: CallbackQuery, state: FSMContext):
@@ -182,9 +205,8 @@ async def delete_event(callback: CallbackQuery, session: AsyncSession):
 @admin_router.callback_query(StateFilter(None), F.data.startswith('change_'))
 async def edit_event(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
     event_id = callback.data.split("_")[-1]
-    event_for_change = await orm_get_event(session, int(event_id))
+    await state.update_data(event_for_change_id=int(event_id)) # Store event_id in FSMContext
 
-    EventAdd.event_for_change = event_for_change
     await callback.answer()
     await callback.message.answer(
         "Введите тип мероприятия", reply_markup=ADD_EVENT_KEYBOARD
@@ -207,13 +229,13 @@ async def show_all_submissions(callback: CallbackQuery, state: FSMContext, sessi
             parse_mode='html',
             reply_markup=keyboard
         )
-    await state.set_state(UserScore.userId)
+    await state.set_state(UserScore.user_id)
 
 #COMMENT ВЫДАЧА БАЛЛОВ
-@admin_router.callback_query(UserScore.userId, F.data.startswith('score:'))
+@admin_router.callback_query(UserScore.user_id, F.data.startswith('score:'))
 async def add_score1(callback: CallbackQuery, state: FSMContext):
     user_id = callback.data.split(":")[1]
-    await state.update_data(userId = user_id)
+    await state.update_data(user_id = user_id)
 
     await state.set_state(UserScore.submission_id)
     subm_id = callback.data.split(":")[2]
@@ -231,7 +253,7 @@ async def add_score2(msg: types.Message, state: FSMContext, session: AsyncSessio
 
     data = await state.get_data()
     score = int(data['score'])
-    user_id = int(data['userId'])
+    user_id = int(data['user_id'])
     subm_id = int(data['submission_id'])
     await orm_delete_subm(session, subm_id)
 
@@ -250,14 +272,16 @@ async def show_bought_goods(callback: CallbackQuery, session: AsyncSession):
 #COMMENT СКАЧАТЬ XCEL-ФАЙЛ С КУПЛЕННЫМИ ТОВАРАМИ
 @admin_router.callback_query(StateFilter(None), F.data == 'get_excel')
 async def send_file_with_bought_goods(callback: types.CallbackQuery, session: AsyncSession):
-    await export_goods_to_excel(session)
-    file_path = os.path.join(os.getcwd(), 'bought_goods.xlsx')
+    await callback.answer("Генерирую Excel файл...")
+    
+    data_for_excel = await orm_get_formatted_bought_goods_data(session)
+    excel_io = await generate_bought_goods_excel(data_for_excel)
 
-    if os.path.exists(file_path):
-        input_file = FSInputFile(file_path)
+    if excel_io:
+        input_file = types.BufferedInputFile(excel_io.getvalue(), filename="bought_goods.xlsx")
         await callback.message.answer_document(input_file)
     else:
-        await callback.message.answer("Файл не найден.")
+        await callback.message.answer("Не удалось сгенерировать файл Excel.")
         
     await callback.answer()
     

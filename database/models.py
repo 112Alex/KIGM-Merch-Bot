@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, BigInteger, Text, ForeignKey, DECIMAL, func
+from sqlalchemy import Column, Integer, BigInteger, Text, ForeignKey, DECIMAL, func, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 
@@ -11,7 +11,7 @@ class Event(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     event_name = Column(Text, nullable=False)
-    event_date = Column(Text, nullable=False)
+    event_date = Column(DateTime, nullable=False)
     event_type = Column(Text, nullable=False)
 
     submissions = relationship("Submission", back_populates="event")
@@ -49,7 +49,7 @@ class Submission(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     subm_text = Column(Text, nullable=False)
-    subm_date = Column(Text, nullable=False)
+    subm_date = Column(DateTime, nullable=False)
     event_id = Column(Integer, ForeignKey('events.id', ondelete='CASCADE'), nullable=False)
     user_id = Column(BigInteger, ForeignKey('users.user_id'), nullable=False)
 

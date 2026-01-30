@@ -1,11 +1,9 @@
-import os
 from sqlalchemy import func, select, update, delete
 from sqlalchemy.ext.asyncio import AsyncSession
+from datetime import date # New import
 
 from common import variables
 from database.models import Event, Submission, User, Good, BoughtGood
-
-from openpyxl import Workbook
 
 
 async def orm_add_event(session: AsyncSession, data: dict):
@@ -73,7 +71,7 @@ async def orm_show_score(session: AsyncSession, user_id: int):
     return result.scalar()
 
 #COMMENT создание заявки
-async def orm_add_submission(session: AsyncSession, text: str, date: str, event_id: int, user_id: int):
+async def orm_add_submission(session: AsyncSession, text: str, date: date, event_id: int, user_id: int):
     subm = Submission(
         subm_text = text,
         subm_date = date,
@@ -108,8 +106,8 @@ async def orm_get_good(session: AsyncSession, good_id: int):
     return result.scalar()
 
 #COMMENT Добавить купленный товар и списать баллы
-async def orm_add_bought_good(session: AsyncSession, good_id: int, userId: int, amount: float):
-    result = await session.execute(select(User).where(User.user_id == userId))
+async def orm_add_bought_good(session: AsyncSession, good_id: int, user_id: int, amount: float):
+    result = await session.execute(select(User).where(User.user_id == user_id))
     user = result.scalar_one_or_none()
 
     if user is None:
@@ -119,7 +117,7 @@ async def orm_add_bought_good(session: AsyncSession, good_id: int, userId: int, 
         raise Exception("Недостаточно баллов на счете")
 
     bought_good = BoughtGood(
-        user_id=userId,
+        user_id=user_id,
         goods_id=good_id
     )
 
@@ -144,8 +142,8 @@ async def orm_get_bought_goods(session: AsyncSession):
     return counts
 
 #COMMENT Добавить баллы
-async def orm_add_score(session: AsyncSession, userId: int, score: int):
-    query = select(User).where(User.user_id == userId)
+async def orm_add_score(session: AsyncSession, user_id: int, score: int):
+    query = select(User).where(User.user_id == user_id)
     result = await session.execute(query)
     user = result.scalar()
     if user.score is None:
@@ -183,32 +181,17 @@ async def orm_check_user_goods(session: AsyncSession, user_id: int, good_id: int
     
     return False  # Если нет товаров у пользователя
     
-#COMMENT экспорт записей о купленном мерче в Xcel
-async def export_goods_to_excel(session: AsyncSession):
-    """Экспорт товаров в файл Excel."""
+async def orm_get_formatted_bought_goods_data(session: AsyncSession) -> list[list]:
+    """Retrieves and formats bought goods data for Excel export."""
+    data_for_excel = []
+    bought_goods_records = await session.execute(select(BoughtGood))
+    bought_goods_records = bought_goods_records.scalars().all()
 
-    goods = await session.execute(select(Good))  # Получаем все товары из базы данных
-    bought_goods = await session.execute(select(BoughtGood))
-    users = await session.execute(select(User))
-    goods = goods.scalars().all()
-    bought_goods = bought_goods.scalars().all()
-    users = users.scalars().all()
-
-    # Создаем новый Excel-файл
-    workbook = Workbook()
-    ws = workbook.active
-    ws.title = "Goods"
-        
-    ws.append(['tg-id', 'название товара', 'имя', 'фамилия', 'группа', 'возраст'])
-        
-    for b_good in bought_goods:
-        # Добавляем данные о товаре в Excel
+    for b_good in bought_goods_records:
         good = await session.execute(select(Good).where(Good.id == b_good.goods_id))
         good = good.scalar()
         user = await session.execute(select(User).where(User.user_id == b_good.user_id))
         user = user.scalar()
-        ws.append([user.user_id, good.name, user.first_name, user.last_name, user.group, user.age])
-
-        # Сохраняем файл
-        workbook.save("bought_goods.xlsx")
-        # print("Данные успешно экспортированы в goods.xlsx")
+        if good and user: # Ensure both good and user exist
+            data_for_excel.append([user.user_id, good.name, user.first_name, user.last_name, user.group, user.age])
+    return data_for_excel

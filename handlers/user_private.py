@@ -6,6 +6,7 @@ from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.context import FSMContext
 
 from sqlalchemy.ext.asyncio import AsyncSession
+from pydantic import ValidationError
 
 from database.orm_query import (
     orm_add_submission, orm_add_user, orm_check_score, orm_check_user_goods,
@@ -17,6 +18,7 @@ from database.orm_query import (
 from keybds.reply import *
 from keybds.inline import *
 from common.variables import *
+from schemas import UserRegistrationSchema, SubmissionSchema
 
 
 user_private_router = Router()
@@ -86,33 +88,32 @@ async def add_user_group(msg: types.Message, state: FSMContext, session: AsyncSe
 
 @user_private_router.message(Reg.group)
 async def add_user_age(msg: types.Message, state: FSMContext, session: AsyncSession):
-    if len(msg.text) <= 5:
-        await state.update_data(group = msg.text)
-        await state.set_state(Reg.age)
-        await msg.answer("Введите свой возраст (только число):")
-    else:
-        await msg.answer('Ввведено некорректное значение. Попробуйте ввести название группы снова')
-        return
+    await state.update_data(group = msg.text)
+    await state.set_state(Reg.age)
+    await msg.answer("Введите свой возраст (только число):")
     
 
 @user_private_router.message(Reg.age)
 async def user_info(msg: types.Message, state: FSMContext, session: AsyncSession):
+    await state.update_data(age = msg.text)
+    data = await state.get_data()
+
     try:
-        if int(msg.text) > 14 and int(msg.text) < 99:
-            await state.update_data(age = msg.text)
-            data = await state.get_data()
-            data_arr = []
-            for item in data:
-                data_arr.append(str(data.get(item)))
-            await msg.answer(
-                text=f'Имя: {data_arr[0]}\nФамилия: {data_arr[1]}\nГруппа: {data_arr[2]}\nВозраст: {data_arr[3]}')
-            await msg.answer(text='Всё верно?', reply_markup=YES_NO_KB)
-            await state.set_state(Reg.reg_confirmation)
-        else:
-            await msg.answer('Введено некорректное значение. Попробуйте снова')
-            return
-    except ValueError:
-        await msg.answer('Введено некорректное значение. Попробуйте снова')
+        validated_user = UserRegistrationSchema(
+            first_name=data['first_name'],
+            last_name=data['last_name'],
+            group=data['group'],
+            age=data['age']
+        )
+        # Update age in state with the validated int
+        await state.update_data(age=validated_user.age)
+        
+        await msg.answer(
+            text=f'Имя: {validated_user.first_name}\nФамилия: {validated_user.last_name}\nГруппа: {validated_user.group}\nВозраст: {validated_user.age}')
+        await msg.answer(text='Всё верно?', reply_markup=YES_NO_KB)
+        await state.set_state(Reg.reg_confirmation)
+    except ValidationError as e:
+        await msg.answer(f"Ошибка валидации данных регистрации: {e.errors()[0]['msg']}\nПожалуйста, введите данные снова.")
         return
 
 #COMMENT ДОБАВЛЕНИЕ ПОЛЬЗОВАТЕЛЯ
@@ -128,7 +129,7 @@ async def add_user_confirmation(callback: CallbackQuery, state: FSMContext, sess
         first_name=data['first_name'],
         last_name=data['last_name'],
         group=data['group'],
-        age=int(data['age']),
+        age=data['age'],
     )
 
     await callback.answer()
@@ -181,10 +182,23 @@ async def submit_app_text(msg: types.Message, state: FSMContext):
 
 @user_private_router.message(Subm.subm_date)
 async def submit_app_date(msg: types.Message, state: FSMContext):
-    await state.update_data(subm_date = msg.text)
+    # Store the received text as subm_date for validation
+    await state.update_data(subm_date=msg.text)
     data = await state.get_data()
-    await msg.answer(f'{data['name']}\n{data['subm_date']}\nВсё верно?', reply_markup=YES_NO_KB)
-    await state.set_state(Subm.confirmation)
+
+    try:
+        validated_submission = SubmissionSchema(
+            subm_text=data['name'], # 'name' in state corresponds to subm_text
+            subm_date=data['subm_date']
+        )
+        # Store the validated datetime.date object back into FSMContext
+        await state.update_data(subm_date=validated_submission.subm_date)
+
+        await msg.answer(f"{validated_submission.subm_text}\n{validated_submission.subm_date.strftime('%d.%m.%Y')}\nВсё верно?", reply_markup=YES_NO_KB)
+        await state.set_state(Subm.confirmation)
+    except ValidationError as e:
+        await msg.answer(f"Ошибка валидации даты заявки: {e.errors()[0]['msg']}\nВведите дату или промежуток времени заново в формате ДД.ММ.ГГГГ")
+        return
 
 @user_private_router.callback_query(Subm.confirmation, F.data == 'yes')
 async def subm_confirm_yes(callback: CallbackQuery, state: FSMContext, session: AsyncSession):

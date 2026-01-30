@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: kigm_merch_db
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - "9001:5432" # Map host port 9001 to container port 5432
+
+  bot:
+    build: .
+    env_file:
+      - .env
+    depends_on:
+      - db
+    # If your bot needs to access the internet, uncomment the following line
+    # network_mode: "host" # Use with caution, exposes host network to container
+
+volumes:
+  db_data:

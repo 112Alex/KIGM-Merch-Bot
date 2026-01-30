@@ -5,3 +5,4 @@ bought_goods.xlsx
 .cursor
 .venv
 requirements.txt.bak
+.venv_pkg_list.txt

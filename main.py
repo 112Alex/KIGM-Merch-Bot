@@ -12,9 +12,19 @@ from dotenv import find_dotenv, load_dotenv
 
 load_dotenv(find_dotenv())
 
+# Environment variable validation
+BOT_TOKEN = getenv("BOT_TOKEN")
+if not BOT_TOKEN:
+    raise ValueError("Environment variable BOT_TOKEN is not set.")
+
+KIGM_MERCH_DB = getenv("KIGM_MERCH_DB")
+if not KIGM_MERCH_DB:
+    raise ValueError("Environment variable KIGM_MERCH_DB is not set.")
+
+
 from middlewares.db import DataBaseSession
 
-from database.engine import create_db, drop_db, add_goods, session_maker
+from database.engine import create_db, session_maker
 
 from handlers.user_private import user_private_router
 from handlers.user_group import user_group_router
@@ -26,7 +36,7 @@ from common import variables
 
 # ALLOWED_UPDATES = ['message', 'edited_message', 'callback_query']
 
-bot = Bot(token=getenv("BOT_TOKEN"))
+bot = Bot(token=BOT_TOKEN)
 
 dp = Dispatcher()
 

@@ -1,4 +1,5 @@
 from string import punctuation
+import re
 
 from aiogram import F, types, Router
 
@@ -8,9 +9,10 @@ user_group_router = Router()
 user_group_router.message.filter(ChatTypeFilter(['group', 'supergroup']))
 
 restricted_words = {} # слова, запрещённые в группах
+PUNCT_TRANSLATION_TABLE = str.maketrans('', '', punctuation)
 
 def clean_text(text: str):
-    return text.translate(str.maketrans('', '', punctuation))
+    return text.translate(PUNCT_TRANSLATION_TABLE)
 
 @user_group_router.edited_message()
 @user_group_router.message()

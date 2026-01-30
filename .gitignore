@@ -3,3 +3,5 @@ __pycache__
 .vscode
 bought_goods.xlsx
 .cursor
+.venv
+requirements.txt.bak

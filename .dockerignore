@@ -1,0 +1,8 @@
+.git
+.vscode
+__pycache__
+.env
+.venv
+requirements.txt.bak
+.venv_pkg_list.txt
+bought_goods.xlsx

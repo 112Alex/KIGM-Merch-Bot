@@ -62,7 +62,7 @@
 
 1.  **Клонировать репозиторий:**
     ```bash
-    git clone <URL_ВАШЕГО_РЕПОЗИТОРИЯ>
+    git clone https://github.com/112Alex/KIGM-Merch-Bot
     cd KIGM-Merch-Bot
     ```
 2.  **Настроить переменные окружения:**

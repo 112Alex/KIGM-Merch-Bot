@@ -273,17 +273,21 @@ async def show_bought_goods(callback: CallbackQuery, session: AsyncSession):
 @admin_router.callback_query(StateFilter(None), F.data == 'get_excel')
 async def send_file_with_bought_goods(callback: types.CallbackQuery, session: AsyncSession):
     await callback.answer("Генерирую Excel файл...")
-    
     data_for_excel = await orm_get_formatted_bought_goods_data(session)
     excel_io = await generate_bought_goods_excel(data_for_excel)
-
     if excel_io:
         input_file = types.BufferedInputFile(excel_io.getvalue(), filename="bought_goods.xlsx")
         await callback.message.answer_document(input_file)
     else:
         await callback.message.answer("Не удалось сгенерировать файл Excel.")
-        
+    # Всегда отвечаем на callback
     await callback.answer()
-    
+
+
+# Универсальный хендлер для неотловленных callback-кнопок (debug)
+@admin_router.callback_query()
+async def unknown_callback(callback: CallbackQuery):
+    await callback.answer("Неизвестная кнопка или действие!", show_alert=True)
+
 
 

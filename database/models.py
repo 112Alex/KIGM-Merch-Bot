@@ -30,6 +30,7 @@ class User(Base):
 
     submissions = relationship("Submission", back_populates="user")
     bought_goods = relationship("BoughtGood", back_populates="user")
+    score_transactions = relationship("ScoreTransaction", back_populates="user")
 
 
 class Good(Base):
@@ -63,8 +64,21 @@ class BoughtGood(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(BigInteger, ForeignKey('users.user_id', ondelete='CASCADE'), nullable=False)
     goods_id = Column(Integer, ForeignKey('goods.id', ondelete='CASCADE'), nullable=False)
+    price_at_purchase = Column(DECIMAL(8, 2), nullable=False)
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)
 
     user = relationship("User", back_populates="bought_goods")
     good = relationship("Good", back_populates="bought_goods")
 
+
+class ScoreTransaction(Base):
+    __tablename__ = 'score_transactions'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(BigInteger, ForeignKey('users.user_id', ondelete='CASCADE'), nullable=False)
+    delta = Column(Integer, nullable=False)
+    reason = Column(Text, nullable=False)
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)
+
+    user = relationship("User", back_populates="score_transactions")
 

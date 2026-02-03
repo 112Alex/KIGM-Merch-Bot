@@ -2,8 +2,7 @@ from sqlalchemy import func, select, update, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import date # New import
 
-from common import variables
-from database.models import Event, Submission, User, Good, BoughtGood
+from database.models import Event, Submission, User, Good, BoughtGood, ScoreTransaction
 
 
 async def orm_add_event(session: AsyncSession, data: dict):
@@ -107,26 +106,35 @@ async def orm_get_good(session: AsyncSession, good_id: int):
 
 #COMMENT Добавить купленный товар и списать баллы
 async def orm_add_bought_good(session: AsyncSession, good_id: int, user_id: int, amount: float):
-    result = await session.execute(select(User).where(User.user_id == user_id))
-    user = result.scalar_one_or_none()
+    async with session.begin():
+        result = await session.execute(select(User).where(User.user_id == user_id))
+        user = result.scalar_one_or_none()
 
-    if user is None:
-        raise Exception("Пользователь не найден")
+        if user is None:
+            raise Exception("Пользователь не найден")
 
-    if user.score < amount:
-        raise Exception("Недостаточно баллов на счете")
+        updated = await session.execute(
+            update(User)
+            .where(User.user_id == user_id, func.coalesce(User.score, 0) >= amount)
+            .values(score=func.coalesce(User.score, 0) - amount)
+        )
+        if updated.rowcount == 0:
+            raise Exception("Недостаточно баллов на счете")
 
-    bought_good = BoughtGood(
-        user_id=user_id,
-        goods_id=good_id
-    )
+        bought_good = BoughtGood(
+            user_id=user_id,
+            goods_id=good_id,
+            price_at_purchase=amount
+        )
 
-    user.score -= amount
-
-    session.add(bought_good)
-    session.add(user)
-
-    await session.commit()
+        session.add(bought_good)
+        session.add(
+            ScoreTransaction(
+                user_id=user_id,
+                delta=-int(amount),
+                reason=f"Покупка товара ID {good_id}"
+            )
+        )
     
 
 #COMMENT Посмотреть купленные товары
@@ -143,13 +151,23 @@ async def orm_get_bought_goods(session: AsyncSession):
 
 #COMMENT Добавить баллы
 async def orm_add_score(session: AsyncSession, user_id: int, score: int):
-    query = select(User).where(User.user_id == user_id)
-    result = await session.execute(query)
-    user = result.scalar()
-    if user.score is None:
-            user.score = 0
-    user.score += score
-    await session.commit()
+    async with session.begin():
+        result = await session.execute(select(User).where(User.user_id == user_id))
+        user = result.scalar_one_or_none()
+        if user is None:
+            raise Exception("Пользователь не найден")
+        await session.execute(
+            update(User)
+            .where(User.user_id == user_id)
+            .values(score=func.coalesce(User.score, 0) + score)
+        )
+        session.add(
+            ScoreTransaction(
+                user_id=user_id,
+                delta=score,
+                reason="Начисление баллов администратором"
+            )
+        )
 
 #COMMENT Проверка на достаточное количество баллов при покупке
 async def orm_check_score(session: AsyncSession, n: int, user_id: int):

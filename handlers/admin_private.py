@@ -1,5 +1,6 @@
-from aiogram import F, Router, types
-from aiogram.types import CallbackQuery, InlineKeyboardMarkup, FSInputFile
+import os
+from aiogram import F, Router, types, Bot
+from aiogram.types import CallbackQuery, InlineKeyboardMarkup, FSInputFile, MenuButtonWebApp, WebAppInfo
 from aiogram.filters import Command, StateFilter, or_f
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.context import FSMContext
@@ -7,6 +8,8 @@ from aiogram.fsm.context import FSMContext
 from pydantic import ValidationError # Import ValidationError
 
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select # Import select here
+from database.models import User # Import User model
 
 from filters.chat_types import ChatTypeFilter, IsAdmin
 from keybds.inline import *
@@ -40,10 +43,13 @@ class UserScore(StatesGroup):
     user_id = State()
 
 @admin_router.message(Command("admin_menu"))
-async def admin_menu(msg: types.Message, state: FSMContext):
+async def admin_menu(msg: types.Message, state: FSMContext, bot: Bot):
     await state.clear()
-    await msg.answer('вы вошли как админ', reply_markup=types.ReplyKeyboardRemove())
-    await msg.answer(text='меню:', reply_markup=ADMIN_KB)
+    # Try to set the webview. If it fails (returns False), don't show the menu.
+    success = await set_admin_webview(bot, msg.from_user.id)
+    if success:
+        await msg.answer('вы вошли как админ', reply_markup=types.ReplyKeyboardRemove())
+        await msg.answer(text='меню:', reply_markup=ADMIN_KB)
 
 
 @admin_router.callback_query(StateFilter(None), F.data == 'add_event')
@@ -289,5 +295,68 @@ async def send_file_with_bought_goods(callback: types.CallbackQuery, session: As
 async def unknown_callback(callback: CallbackQuery):
     await callback.answer("Неизвестная кнопка или действие!", show_alert=True)
 
+# Функция для включения кнопки админа
+async def set_admin_webview(bot: Bot, chat_id: int):
+    ADMIN_URL = os.getenv("ADMIN_WEBAPP_URL")
+    owner_id = int(os.getenv("OWNER_ID", 0))
+
+    if not ADMIN_URL or not ADMIN_URL.startswith("https://"):
+        if chat_id == owner_id:
+            await bot.send_message(
+                chat_id,
+                "⚠️ **URL Админки не настроен!**\n\n"
+                "1. Убедитесь, что сервис `ngrok` запущен в Docker.\n"
+                "2. Получите публичный URL, выполнив команду:\n"
+                "   `docker compose logs ngrok`\n"
+                "3. Найдите в логах строку, похожую на:\n"
+                "   `url=https://<some-name>.ngrok-free.app`\n"
+                "4. Скопируйте этот **HTTPS** URL и вставьте его в файл `.env`:\n"
+                "   `ADMIN_WEBAPP_URL=https://...`\n"
+                "5. Перезапустите контейнеры:\n"
+                "   `docker compose up --build -d`",
+                parse_mode="Markdown"
+            )
+        else:
+            await bot.send_message(chat_id, "Веб-админка еще не настроена. Обратитесь к владельцу бота.")
+        return False
+    
+    await bot.set_chat_menu_button(
+        chat_id=chat_id,
+        menu_button=MenuButtonWebApp(
+            text="👑 Админка",
+            web_app=WebAppInfo(url=f"{ADMIN_URL}/admin")
+        )
+    )
+    return True
+
+@admin_router.message(Command("add_admin"))
+async def add_new_admin(msg: types.Message, session: AsyncSession, bot: Bot):
+    # 1. Защита: команду может выполнить только Владелец (из .env)
+    owner_id = int(os.getenv("OWNER_ID", 0))
+    if msg.from_user.id != owner_id:
+        return
+
+    try:
+        # Парсим ID из сообщения: /add_admin 123456789
+        new_admin_id = int(msg.text.split()[1])
+    except (IndexError, ValueError):
+        await msg.answer("Используйте: /add_admin <ID пользователя>")
+        return
+
+    # 2. Выдаем роль в БД
+    result = await session.execute(select(User).where(User.user_id == new_admin_id))
+    user = result.scalar_one_or_none()
+    
+    if user:
+        user.role = 'admin'
+        await session.commit()
+        
+        # 3. Включаем интерфейс Mini App
+        await set_admin_webview(bot, new_admin_id)
+        
+        await msg.answer(f"Пользователь {user.first_name} назначен админом!")
+        await bot.send_message(new_admin_id, "Вам выданы права админа. Проверьте кнопку меню!")
+    else:
+        await msg.answer("Пользователь не найден в базе.")
 
 

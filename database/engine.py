@@ -5,7 +5,7 @@ from sqlalchemy.future import select
 from sqlalchemy import func
 
 from database.models import Base, Good
-from database.seeds import add_initial_goods # Import add_initial_goods
+from database.seeds import add_initial_goods
 
 
 engine = create_async_engine(getenv('KIGM_MERCH_DB'), echo=True)
@@ -17,7 +17,7 @@ async def create_db():
         await conn.run_sync(Base.metadata.create_all)
 
     async with session_maker() as session:
-        await add_initial_goods(session) # Call the new function
+        await add_initial_goods(session)
 
 
 

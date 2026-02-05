@@ -6,3 +6,5 @@ bought_goods.xlsx
 .venv
 requirements.txt.bak
 .venv_pkg_list.txt
+TODO.md
+.vscode

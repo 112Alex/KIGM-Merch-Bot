@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, BigInteger, Text, ForeignKey, DECIMAL, func, DateTime
+from sqlalchemy import Column, Integer, BigInteger, Text, ForeignKey, DECIMAL, func, DateTime, String
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 
@@ -7,6 +7,7 @@ from sqlalchemy.orm import relationship
 Base = declarative_base()
 
 class Event(Base):
+    '''класс волнтёрского мероприятия'''
     __tablename__ = 'events'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -16,8 +17,8 @@ class Event(Base):
 
     submissions = relationship("Submission", back_populates="event")
 
-
 class User(Base):
+    '''Класс пользователя'''
     __tablename__ = 'users'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -27,6 +28,7 @@ class User(Base):
     age = Column(Integer, nullable=False)
     group = Column(Text, nullable=False)
     score = Column(BigInteger)
+    role = Column(String, default='user', nullable=False)
 
     submissions = relationship("Submission", back_populates="user")
     bought_goods = relationship("BoughtGood", back_populates="user")
@@ -34,6 +36,7 @@ class User(Base):
 
 
 class Good(Base):
+    '''класс товара'''
     __tablename__ = 'goods'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -46,6 +49,7 @@ class Good(Base):
 
 
 class Submission(Base):
+    '''класс заявки на участие в мероприятии'''
     __tablename__ = 'submissions'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -59,6 +63,7 @@ class Submission(Base):
 
 
 class BoughtGood(Base):
+    '''класс купленного товара'''
     __tablename__ = 'bought_goods'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -72,6 +77,7 @@ class BoughtGood(Base):
 
 
 class ScoreTransaction(Base):
+    '''класс транзакции изменения баллов'''
     __tablename__ = 'score_transactions'
 
     id = Column(Integer, primary_key=True, autoincrement=True)

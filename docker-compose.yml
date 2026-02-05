@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   db:
-    image: postgres:15-alpine
+    image: postgres:18-alpine
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
@@ -10,7 +10,18 @@ services:
     volumes:
       - db_data:/var/lib/postgresql/data
     ports:
-      - "9001:5432" # Map host port 9001 to container port 5432
+      - "9001:5432"
+
+  admin_panel:
+    build: .
+    env_file:
+      - .env
+    depends_on:
+      - db
+    ports:
+      - "8000:8000" # Expose port 8000 to the host
+    command: python -m uvicorn web.app:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips='*' --log-level debug
+    # Port 8000 is exposed internally to other services, but not to the host
 
   bot:
     build: .
@@ -18,8 +29,8 @@ services:
       - .env
     depends_on:
       - db
-    # If your bot needs to access the internet, uncomment the following line
-    # network_mode: "host" # Use with caution, exposes host network to container
+    command: python main.py
+
 
 volumes:
   db_data:

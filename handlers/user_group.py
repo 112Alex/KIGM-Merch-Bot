@@ -8,7 +8,7 @@ from filters.chat_types import ChatTypeFilter
 user_group_router = Router()
 user_group_router.message.filter(ChatTypeFilter(['group', 'supergroup']))
 
-restricted_words = {} # слова, запрещённые в группах
+restricted_words = {} #NOTE слова, запрещённые в группах
 PUNCT_TRANSLATION_TABLE = str.maketrans('', '', punctuation)
 
 def clean_text(text: str):

@@ -38,6 +38,7 @@ events = [
     "Участие в спортивных мероприятиях, представляя колледж"
 ]
 
+# TODO: implement contact keyboard if needed
 # CONTACT_KEYBOARD = ReplyKeyboardMarkup(keyboard=[
 #         [KeyboardButton(text="📱 Отправить")]
 #     ], request_contact=True,resize_keyboard=True, one_time_keyboard=True)

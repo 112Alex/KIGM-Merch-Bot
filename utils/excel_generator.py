@@ -1,7 +1,9 @@
 import io
 from openpyxl import Workbook
+import asyncio
+from functools import partial
 
-async def generate_bought_goods_excel(data: list) -> io.BytesIO:
+def _generate_sync(data: list) -> io.BytesIO:
     """Generates an Excel file for bought goods from a list of data and returns it as BytesIO."""
     workbook = Workbook()
     ws = workbook.active
@@ -19,3 +21,8 @@ async def generate_bought_goods_excel(data: list) -> io.BytesIO:
     workbook.save(excel_file)
     excel_file.seek(0)  # Rewind to the beginning of the stream
     return excel_file
+
+async def generate_bought_goods_excel(data: list) -> io.BytesIO:
+    loop = asyncio.get_running_loop()
+    # Запуск в ThreadPoolExecutor
+    return await loop.run_in_executor(None, partial(_generate_sync, data))
